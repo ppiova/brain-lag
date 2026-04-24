@@ -366,6 +366,8 @@
     comboLabel.classList.remove('fire', 'bump');
     startOverlay.classList.remove('visible');
     deathOverlay.classList.remove('visible');
+    newRecordBadge.classList.remove('visible');
+    state.pendingNewRecord = false;
   }
 
   function updateRuleUI() {
@@ -644,19 +646,23 @@
     deathTitle.textContent = failure.title;
     deathCaption.textContent = failure.caption;
 
-    if (isNewRecord) {
-      newRecordBadge.classList.add('visible');
-      // Gold confetti pouring upward
-      spawnParticles(W / 2, H * 0.6, 40, '#ffd166', 450, 1.4, 180);
-      spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 24,
-        '#ffd166', 300, 1.0, 140);
-      if (window.BrainLagAudio) BrainLagAudio.newRecord();
-    } else {
-      newRecordBadge.classList.remove('visible');
-    }
+    // Defer the new-record celebration to when the overlay actually appears,
+    // so the death cinematic stays focused on the death itself.
+    state.pendingNewRecord = isNewRecord;
+    newRecordBadge.classList.remove('visible');
 
     // overlay shows AFTER the cinematic
     if (window.BrainLagAudio) BrainLagAudio.death();
+  }
+
+  function revealDeathOverlay() {
+    deathOverlay.classList.add('visible');
+    if (state.pendingNewRecord) {
+      newRecordBadge.classList.add('visible');
+      spawnParticles(W / 2, H * 0.55, 40, '#ffd166', 450, 1.4, 180);
+      if (window.BrainLagAudio) BrainLagAudio.newRecord();
+      state.pendingNewRecord = false;
+    }
   }
 
   function updateStars(dt) {
@@ -728,7 +734,7 @@
       if (state.deathFlash > 0) state.deathFlash = Math.max(0, state.deathFlash - dt * 2);
       if (state.deathSequenceTimer === 0) {
         state.phase = 'dead';
-        deathOverlay.classList.add('visible');
+        revealDeathOverlay();
       }
       return;
     }
