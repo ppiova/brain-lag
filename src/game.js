@@ -84,6 +84,7 @@
   ctx.imageSmoothingEnabled = false;
 
   const ruleLabel = document.getElementById('rule-label');
+  const ruleIconEl = document.getElementById('rule-icon');
   const timeLabel = document.getElementById('time');
   const comboLabel = document.getElementById('combo');
   const startOverlay = document.getElementById('overlay');
@@ -368,8 +369,13 @@
   }
 
   function updateRuleUI() {
+    const lc = state.currentRule.toLowerCase();
     ruleLabel.textContent = state.currentRule;
-    ruleLabel.className = state.currentRule.toLowerCase();
+    ruleLabel.className = lc;
+    if (ruleIconEl) {
+      ruleIconEl.textContent = RULE_ICONS[state.currentRule] || '?';
+      ruleIconEl.className = 'rule-icon ' + lc;
+    }
   }
 
   function pickNextRule() {

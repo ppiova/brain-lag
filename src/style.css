@@ -84,6 +84,19 @@ html, body {
   text-shadow: 0 0 14px currentColor;
 }
 
+.rule-icon {
+  color: var(--jump);
+  font-size: 1.1em;
+  letter-spacing: 0;
+  transition: color 0.2s ease;
+  text-shadow: 0 0 12px currentColor;
+  margin-right: 0.15em;
+}
+.rule-icon.gravity { color: var(--gravity); }
+.rule-icon.dash    { color: var(--dash); }
+.rule-icon.bounce  { color: var(--bounce); }
+.rule-icon.jump    { color: var(--jump); }
+
 #rule-label.gravity { color: var(--gravity); }
 #rule-label.jump    { color: var(--jump); }
 #rule-label.dash    { color: var(--dash); }
