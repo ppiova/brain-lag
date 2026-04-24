@@ -103,8 +103,40 @@
   const reduceMotionInput = document.getElementById('reduce-motion');
   const musicValLabel = document.getElementById('music-val');
   const sfxValLabel = document.getElementById('sfx-val');
+  const statsLine = document.getElementById('stats-line');
 
   let reduceMotion = localStorage.getItem('brainlag_reduce_motion') === '1';
+
+  // ——— Persistent stats ———
+  const stats = { runs: 0, totalTime: 0, bestCombo: 0, fails: {} };
+  function loadStats() {
+    try {
+      const raw = localStorage.getItem('brainlag_stats');
+      if (raw) Object.assign(stats, JSON.parse(raw));
+    } catch (e) { /* corrupted JSON — ignore */ }
+  }
+  function saveStats() {
+    try { localStorage.setItem('brainlag_stats', JSON.stringify(stats)); } catch (e) {}
+  }
+  function formatDuration(seconds) {
+    const s = Math.floor(seconds);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (h > 0) return h + 'h ' + m + 'm';
+    if (m > 0) return m + 'm ' + sec + 's';
+    return sec + 's';
+  }
+  function renderStatsLine() {
+    if (!statsLine) return;
+    if (stats.runs === 0) { statsLine.textContent = ''; return; }
+    statsLine.textContent =
+      stats.runs + ' run' + (stats.runs === 1 ? '' : 's') +
+      ' \u00B7 ' + formatDuration(stats.totalTime) + ' in hyperspace' +
+      ' \u00B7 best x' + stats.bestCombo;
+  }
+  loadStats();
+  renderStatsLine();
 
   const state = {
     phase: 'start',
@@ -179,6 +211,8 @@
   }
 
   function resetRun() {
+    stats.runs += 1;
+    saveStats();
     state.phase = 'playing';
     state.time = 0;
     state.speed = BASE_SPEED;
@@ -471,6 +505,10 @@
       '#ffffff', 500, 0.6, 260);
     addShake(28);
     const failure = pickFailureMode();
+    stats.totalTime += state.time;
+    if (state.bestCombo > stats.bestCombo) stats.bestCombo = state.bestCombo;
+    stats.fails[failure.title] = (stats.fails[failure.title] || 0) + 1;
+    saveStats();
     deathScore.textContent = state.time.toFixed(1) + 's';
     deathCombo.textContent = 'Best combo · x' + state.bestCombo;
     deathBest.textContent = 'Best · ' + state.best.toFixed(1) + 's';
