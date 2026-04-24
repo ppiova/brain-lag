@@ -23,7 +23,29 @@
       <span class="hud-sep">//</span>
       <span id="combo" class="combo">x0</span>
     </div>
-    <button id="mute" class="mute-btn" aria-label="Toggle audio" title="Toggle audio"></button>
+    <button id="settings-btn" class="icon-btn settings-btn" aria-label="Settings" title="Settings"></button>
+    <button id="mute" class="mute-btn icon-btn" aria-label="Toggle audio" title="Toggle audio"></button>
+
+    <div id="settings" class="overlay settings-overlay">
+      <h2>SETTINGS</h2>
+      <div class="settings-body">
+        <div class="settings-row">
+          <label for="music-vol">Music</label>
+          <input type="range" id="music-vol" min="0" max="100" value="100" />
+          <span id="music-val" class="settings-val">100</span>
+        </div>
+        <div class="settings-row">
+          <label for="sfx-vol">SFX</label>
+          <input type="range" id="sfx-vol" min="0" max="100" value="100" />
+          <span id="sfx-val" class="settings-val">100</span>
+        </div>
+        <div class="settings-row settings-toggle">
+          <label for="reduce-motion">Reduce Motion</label>
+          <input type="checkbox" id="reduce-motion" />
+        </div>
+      </div>
+      <button id="settings-close" class="btn-primary">CLOSE</button>
+    </div>
     <div id="overlay" class="overlay visible">
       <p class="crawl">A long reaction time ago,<br/>in a tap far, far away...</p>
       <h1>Brain Lag</h1>

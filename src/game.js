@@ -95,6 +95,16 @@
   const deathCaption = document.getElementById('death-caption');
   const newRecordBadge = document.getElementById('new-record');
   const pauseOverlay = document.getElementById('pause');
+  const settingsOverlay = document.getElementById('settings');
+  const settingsBtn = document.getElementById('settings-btn');
+  const settingsClose = document.getElementById('settings-close');
+  const musicVolInput = document.getElementById('music-vol');
+  const sfxVolInput = document.getElementById('sfx-vol');
+  const reduceMotionInput = document.getElementById('reduce-motion');
+  const musicValLabel = document.getElementById('music-val');
+  const sfxValLabel = document.getElementById('sfx-val');
+
+  let reduceMotion = localStorage.getItem('brainlag_reduce_motion') === '1';
 
   const state = {
     phase: 'start',
@@ -126,6 +136,7 @@
     spread = spread || 220;
     life = life || 0.7;
     gravity = gravity != null ? gravity : 280;
+    if (reduceMotion) count = Math.max(1, Math.floor(count * 0.3));
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = spread * (0.2 + Math.random() * 0.8);
@@ -142,6 +153,7 @@
   }
 
   function addShake(amount) {
+    if (reduceMotion) return;
     state.shake = Math.max(state.shake, amount);
   }
 
@@ -965,6 +977,66 @@
     if (document.hidden) setPaused(true);
   });
   window.addEventListener('blur', () => setPaused(true));
+
+  // ——— Settings ———
+  let wasPlayingBeforeSettings = false;
+  function openSettings() {
+    wasPlayingBeforeSettings = state.phase === 'playing' && !state.paused;
+    if (wasPlayingBeforeSettings) setPaused(true);
+    settingsOverlay.classList.add('visible');
+  }
+  function closeSettings() {
+    settingsOverlay.classList.remove('visible');
+    if (wasPlayingBeforeSettings) setPaused(false);
+    wasPlayingBeforeSettings = false;
+  }
+
+  function loadSettings() {
+    const mv = parseFloat(localStorage.getItem('brainlag_music_vol'));
+    const sv = parseFloat(localStorage.getItem('brainlag_sfx_vol'));
+    const music = isNaN(mv) ? 1 : Math.max(0, Math.min(1, mv));
+    const sfx   = isNaN(sv) ? 1 : Math.max(0, Math.min(1, sv));
+    musicVolInput.value = String(Math.round(music * 100));
+    sfxVolInput.value   = String(Math.round(sfx * 100));
+    musicValLabel.textContent = String(Math.round(music * 100));
+    sfxValLabel.textContent   = String(Math.round(sfx * 100));
+    reduceMotionInput.checked = reduceMotion;
+    if (window.BrainLagAudio) {
+      BrainLagAudio.setMusicVolume(music);
+      BrainLagAudio.setSfxVolume(sfx);
+    }
+  }
+
+  musicVolInput.addEventListener('input', e => {
+    const v = parseInt(e.target.value, 10) / 100;
+    localStorage.setItem('brainlag_music_vol', String(v));
+    musicValLabel.textContent = e.target.value;
+    if (window.BrainLagAudio) BrainLagAudio.setMusicVolume(v);
+  });
+  sfxVolInput.addEventListener('input', e => {
+    const v = parseInt(e.target.value, 10) / 100;
+    localStorage.setItem('brainlag_sfx_vol', String(v));
+    sfxValLabel.textContent = e.target.value;
+    if (window.BrainLagAudio) BrainLagAudio.setSfxVolume(v);
+  });
+  reduceMotionInput.addEventListener('change', e => {
+    reduceMotion = e.target.checked;
+    localStorage.setItem('brainlag_reduce_motion', reduceMotion ? '1' : '0');
+  });
+  settingsBtn.addEventListener('pointerdown', e => {
+    e.stopPropagation(); e.preventDefault();
+    if (window.BrainLagAudio) BrainLagAudio.start();
+    openSettings();
+  });
+  settingsClose.addEventListener('pointerdown', e => {
+    e.stopPropagation(); e.preventDefault(); closeSettings();
+  });
+  settingsOverlay.addEventListener('pointerdown', e => {
+    if (e.target === settingsOverlay) closeSettings();
+  });
+  // Prevent tap inside settings body from closing
+  document.querySelector('.settings-body').addEventListener('pointerdown', e => e.stopPropagation());
+  loadSettings();
 
   const muteBtn = document.getElementById('mute');
   let isMuted = localStorage.getItem('brainlag_muted') === '1';

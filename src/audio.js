@@ -394,8 +394,29 @@
   function suspend() { if (ctx && ctx.state === 'running') ctx.suspend(); }
   function resumeCtx() { if (ctx && ctx.state === 'suspended') ctx.resume(); }
 
+  const BASE_MUSIC_GAIN = 0.55;
+  const BASE_SFX_GAIN = 0.8;
+
+  function setMusicVolume(v) {
+    ensureCtx();
+    if (!musicBus) return;
+    const t = ctx.currentTime;
+    musicBus.gain.cancelScheduledValues(t);
+    musicBus.gain.setValueAtTime(musicBus.gain.value, t);
+    musicBus.gain.linearRampToValueAtTime(Math.max(0, Math.min(1, v)) * BASE_MUSIC_GAIN, t + 0.12);
+  }
+  function setSfxVolume(v) {
+    ensureCtx();
+    if (!sfxBus) return;
+    const t = ctx.currentTime;
+    sfxBus.gain.cancelScheduledValues(t);
+    sfxBus.gain.setValueAtTime(sfxBus.gain.value, t);
+    sfxBus.gain.linearRampToValueAtTime(Math.max(0, Math.min(1, v)) * BASE_SFX_GAIN, t + 0.12);
+  }
+
   window.BrainLagAudio = {
     start, setMuted, isMuted, suspend, resume: resumeCtx,
+    setMusicVolume, setSfxVolume,
     jump: sfxJump, gravityFlip: sfxGravity, dash: sfxDash,
     nearMiss: sfxNearMiss, ruleChange: sfxRuleChange, death: sfxDeath,
     newRecord: sfxNewRecord,
