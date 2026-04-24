@@ -157,6 +157,16 @@
   const dailyMeta = document.getElementById('daily-meta');
   const levelNumEl = document.getElementById('level-num');
   const levelBannerEl = document.getElementById('level-banner');
+  const leaderboardOverlay = document.getElementById('leaderboard');
+  const leaderboardList = document.getElementById('leaderboard-list');
+  const leaderboardClose = document.getElementById('leaderboard-close');
+  const btnLeaderboard = document.getElementById('btn-leaderboard');
+  const challengeBannerEl = document.getElementById('challenge-banner');
+  const challengeNameEl = document.getElementById('challenge-name');
+  const challengeTimeEl = document.getElementById('challenge-time');
+  const challengeComboEl = document.getElementById('challenge-combo');
+  const challengeDismissBtn = document.getElementById('challenge-dismiss');
+  const playerNameInput = document.getElementById('player-name');
 
   let reduceMotion = localStorage.getItem('brainlag_reduce_motion') === '1';
 
@@ -261,10 +271,20 @@
     const combo = state.bestCombo;
     const mode = state.isDaily ? 'DAILY ' + daily.key : 'free play';
     const quip = deathTitle.textContent || '';
-    return 'Brain Lag \u00B7 ' + mode + ' \u2014 ' +
+    const name = window.BrainLagLeaderboard ? BrainLagLeaderboard.getName() : 'PILOT';
+
+    // Challenge URL: friend opens → sees banner "NAME te reta con 54.2s"
+    let url = SHARE_URL;
+    if (window.BrainLagLeaderboard && state.time >= 2) {
+      url = BrainLagLeaderboard.buildChallengeURL({
+        name, time: state.time, combo, level: (state.maxLevel | 0) + 1,
+      });
+    }
+
+    return name + ' \u00B7 Brain Lag ' + mode + ' \u2014 ' +
       time + 's \u00B7 x' + combo + ' combo' +
       (quip ? ' \u00B7 ' + quip : '') +
-      '\n' + SHARE_URL;
+      '\nBeat me: ' + url;
   }
   async function shareResult() {
     const text = buildShareText();
@@ -297,6 +317,95 @@
     e.stopPropagation();
     e.preventDefault();
     shareResult();
+  });
+
+  // ——— Leaderboard + challenges ———
+
+  function renderLeaderboard() {
+    if (!window.BrainLagLeaderboard || !leaderboardList) return;
+    const top = BrainLagLeaderboard.getTop10();
+    const myName = BrainLagLeaderboard.getName();
+    leaderboardList.innerHTML = '';
+    if (!top.length) {
+      const empty = document.createElement('p');
+      empty.className = 'leaderboard-empty';
+      empty.textContent = 'No runs yet — survive 2+ seconds to appear here.';
+      leaderboardList.appendChild(empty);
+      return;
+    }
+    top.forEach((r, i) => {
+      const row = document.createElement('div');
+      row.className = 'lb-row';
+      if (i === 0) row.classList.add('top1');
+      if (i === 1) row.classList.add('top2');
+      if (i === 2) row.classList.add('top3');
+      if (r.name === myName) row.classList.add('you');
+      row.innerHTML =
+        '<span class="lb-rank">#' + (i + 1) + '</span>' +
+        '<span class="lb-name"></span>' +
+        '<span class="lb-time">' + r.time.toFixed(1) + 's</span>' +
+        '<span class="lb-combo">x' + r.combo + '</span>' +
+        '<span class="lb-level">L' + r.level + '</span>' +
+        '<span class="lb-when">' + BrainLagLeaderboard.formatTimeAgo(r.date) + '</span>';
+      row.querySelector('.lb-name').textContent = r.name; // avoid HTML injection
+      leaderboardList.appendChild(row);
+    });
+  }
+
+  function openLeaderboard() {
+    renderLeaderboard();
+    leaderboardOverlay.classList.add('visible');
+  }
+  function closeLeaderboard() {
+    leaderboardOverlay.classList.remove('visible');
+  }
+
+  btnLeaderboard.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (window.BrainLagAudio) BrainLagAudio.start();
+    openLeaderboard();
+  });
+  leaderboardClose.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    closeLeaderboard();
+  });
+  leaderboardOverlay.addEventListener('pointerdown', e => {
+    if (e.target === leaderboardOverlay) closeLeaderboard();
+  });
+
+  // Callsign input — settings panel
+  function refreshCallsignUI() {
+    if (!playerNameInput || !window.BrainLagLeaderboard) return;
+    playerNameInput.value = BrainLagLeaderboard.getName();
+  }
+  if (playerNameInput) {
+    playerNameInput.addEventListener('change', e => {
+      if (window.BrainLagLeaderboard) {
+        const ok = BrainLagLeaderboard.setName(e.target.value);
+        if (!ok) refreshCallsignUI();
+      }
+    });
+    playerNameInput.addEventListener('blur', refreshCallsignUI);
+  }
+  refreshCallsignUI();
+
+  // Friend challenge banner — show if URL has ?c=... / #c=...
+  (function handleChallenge() {
+    if (!window.BrainLagLeaderboard) return;
+    const ch = BrainLagLeaderboard.parseChallengeFromURL();
+    if (!ch) return;
+    challengeNameEl.textContent = ch.name;
+    challengeTimeEl.textContent = ch.time.toFixed(1) + 's';
+    challengeComboEl.textContent = ch.combo ? ' · x' + ch.combo : '';
+    challengeBannerEl.classList.add('visible');
+  })();
+  challengeDismissBtn.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    challengeBannerEl.classList.remove('visible');
+    if (window.BrainLagLeaderboard) BrainLagLeaderboard.clearChallengeFromURL();
   });
 
   const state = {
@@ -729,6 +838,17 @@
     // so the death cinematic stays focused on the death itself.
     state.pendingNewRecord = isNewRecord;
     newRecordBadge.classList.remove('visible');
+
+    // Persist to local leaderboard.
+    if (window.BrainLagLeaderboard) {
+      BrainLagLeaderboard.recordRun({
+        time: state.time,
+        combo: state.bestCombo,
+        level: (state.maxLevel | 0) + 1,
+        mode: state.isDaily ? 'daily' : 'free',
+        failureMode: failure.title,
+      });
+    }
 
     // overlay shows AFTER the cinematic
     if (window.BrainLagAudio) BrainLagAudio.death();

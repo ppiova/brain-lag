@@ -38,6 +38,10 @@
     <div id="settings" class="overlay settings-overlay">
       <h2>SETTINGS</h2>
       <div class="settings-body">
+        <div class="settings-row settings-callsign">
+          <label for="player-name">Callsign</label>
+          <input type="text" id="player-name" maxlength="16" placeholder="PILOT-XXXX" />
+        </div>
         <div class="settings-row">
           <label for="music-vol">Music</label>
           <input type="range" id="music-vol" min="0" max="100" value="100" />
@@ -56,6 +60,15 @@
       <button id="settings-close" class="btn-primary">CLOSE</button>
     </div>
     <div id="overlay" class="overlay visible">
+      <div id="challenge-banner" class="challenge-banner">
+        <span class="challenge-text">
+          <strong id="challenge-name">FRIEND</strong>
+          <span>te reta con</span>
+          <strong id="challenge-time">0.0s</strong>
+          <span id="challenge-combo" class="challenge-combo"></span>
+        </span>
+        <button id="challenge-dismiss" class="challenge-dismiss" aria-label="Dismiss">&times;</button>
+      </div>
       <p class="crawl">A long reaction time ago,<br/>in a tap far, far away...</p>
       <h1>Brain Lag</h1>
       <p class="subtitle">— Hyperdrive Protocol —</p>
@@ -65,12 +78,22 @@
         Every few seconds, your tap changes jobs. Learn by dying.
       </p>
       <p class="hint">Tap · Click · <kbd>Space</kbd> to engage</p>
-      <button id="btn-daily" class="btn-daily">
-        <span class="daily-title">Daily Challenge</span>
-        <span id="daily-meta" class="daily-meta">— · today's best: —</span>
-      </button>
+      <div class="start-actions">
+        <button id="btn-daily" class="btn-daily">
+          <span class="daily-title">Daily Challenge</span>
+          <span id="daily-meta" class="daily-meta">— · today's best: —</span>
+        </button>
+        <button id="btn-leaderboard" class="btn-leaderboard">TOP 10</button>
+      </div>
       <p id="stats-line" class="stats-line"></p>
     </div>
+    <div id="leaderboard" class="overlay leaderboard-overlay">
+      <h2>TOP 10</h2>
+      <p class="leaderboard-sub">Local rankings · this device</p>
+      <div id="leaderboard-list" class="leaderboard-list"></div>
+      <button id="leaderboard-close" class="btn-primary">CLOSE</button>
+    </div>
+
     <div id="pause" class="overlay">
       <h2>PAUSED</h2>
       <p class="tag">Hyperdrive stabilizers engaged.</p>
@@ -88,6 +111,7 @@
     </div>
   </main>
   <script src="src/audio.js"></script>
+  <script src="src/leaderboard.js"></script>
   <script src="src/game.js"></script>
 </body>
 </html>
