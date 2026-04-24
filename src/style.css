@@ -544,3 +544,14 @@ html, body {
   background: rgba(62, 195, 255, 0.2);
   box-shadow: 0 0 20px rgba(62, 195, 255, 0.5), inset 0 0 12px rgba(62, 195, 255, 0.2);
 }
+
+.btn-share {
+  margin-top: 0.5rem;
+}
+
+.btn-share.copied {
+  color: var(--bounce);
+  border-color: var(--bounce);
+  background: rgba(63, 242, 160, 0.15);
+  box-shadow: 0 0 20px rgba(63, 242, 160, 0.6);
+}

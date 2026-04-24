@@ -203,6 +203,52 @@
     startDaily();
   });
 
+  // ——— Share result ———
+  const btnShare = document.getElementById('btn-share');
+  const SHARE_URL = 'https://ppiova.github.io/brain-lag/';
+  function buildShareText() {
+    const time = state.time.toFixed(1);
+    const combo = state.bestCombo;
+    const mode = state.isDaily ? 'DAILY ' + daily.key : 'free play';
+    const quip = deathTitle.textContent || '';
+    return 'Brain Lag \u00B7 ' + mode + ' \u2014 ' +
+      time + 's \u00B7 x' + combo + ' combo' +
+      (quip ? ' \u00B7 ' + quip : '') +
+      '\n' + SHARE_URL;
+  }
+  async function shareResult() {
+    const text = buildShareText();
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Brain Lag', text, url: SHARE_URL });
+        return;
+      } catch (e) { /* user cancelled — fall through to clipboard */ }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        flashCopied();
+        return;
+      } catch (e) { /* fall through */ }
+    }
+    // Last-resort fallback: prompt for manual copy
+    window.prompt('Copy your result:', text);
+  }
+  function flashCopied() {
+    const original = btnShare.textContent;
+    btnShare.textContent = 'COPIED';
+    btnShare.classList.add('copied');
+    setTimeout(() => {
+      btnShare.textContent = original;
+      btnShare.classList.remove('copied');
+    }, 1400);
+  }
+  btnShare.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    shareResult();
+  });
+
   const state = {
     phase: 'start',
     time: 0,
