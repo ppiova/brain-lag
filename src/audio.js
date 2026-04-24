@@ -336,6 +336,34 @@
     bell.start(t + 0.45); bell.stop(t + 1.05);
   }
 
+  function sfxLevelUp() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    // Rising tri-chord — power-up feel
+    const notes = [392.00, 587.33, 783.99]; // G4-D5-G5
+    notes.forEach((freq, i) => {
+      const st = t + i * 0.06;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.22, st);
+      g.gain.exponentialRampToValueAtTime(0.001, st + 0.4);
+      osc.connect(g); g.connect(sfxBus);
+      osc.start(st); osc.stop(st + 0.45);
+    });
+    // Sub-whoosh underneath
+    const sub = ctx.createOscillator();
+    const sg = ctx.createGain();
+    sub.type = 'sawtooth';
+    sub.frequency.setValueAtTime(80, t);
+    sub.frequency.exponentialRampToValueAtTime(300, t + 0.3);
+    sg.gain.setValueAtTime(0.15, t);
+    sg.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    sub.connect(sg); sg.connect(sfxBus);
+    sub.start(t); sub.stop(t + 0.55);
+  }
+
   function sfxNewRecord() {
     if (!ctx) return;
     const t = ctx.currentTime;
@@ -419,6 +447,6 @@
     setMusicVolume, setSfxVolume,
     jump: sfxJump, gravityFlip: sfxGravity, dash: sfxDash,
     nearMiss: sfxNearMiss, ruleChange: sfxRuleChange, death: sfxDeath,
-    newRecord: sfxNewRecord,
+    newRecord: sfxNewRecord, levelUp: sfxLevelUp,
   };
 })();

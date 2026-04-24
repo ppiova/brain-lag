@@ -97,6 +97,62 @@ html, body {
 .rule-icon.bounce  { color: var(--bounce); }
 .rule-icon.jump    { color: var(--jump); }
 
+.level-num {
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 10px rgba(255, 209, 102, 0.5);
+}
+
+.level-banner {
+  position: absolute;
+  top: 28%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35em;
+  padding: 1.1em 2.4em;
+  border: 2px solid var(--level-accent, var(--jump));
+  background: rgba(1, 2, 10, 0.65);
+  backdrop-filter: blur(4px);
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 15;
+  box-shadow:
+    0 0 30px color-mix(in srgb, var(--level-accent, var(--jump)) 60%, transparent),
+    inset 0 0 18px color-mix(in srgb, var(--level-accent, var(--jump)) 20%, transparent);
+}
+.level-banner.visible {
+  animation: level-banner-in-out 2s ease-out forwards;
+}
+.level-banner-num {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.5em;
+  font-size: clamp(12px, 1.6vw, 15px);
+  color: var(--muted);
+}
+.level-banner-name {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.25em;
+  font-size: clamp(22px, 4vw, 36px);
+  color: var(--level-accent, var(--jump));
+  text-shadow: 0 0 16px currentColor;
+  text-transform: uppercase;
+}
+@keyframes level-banner-in-out {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  15%  { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+  25%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  75%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+
 #rule-label.gravity { color: var(--gravity); }
 #rule-label.jump    { color: var(--jump); }
 #rule-label.dash    { color: var(--dash); }

@@ -25,6 +25,9 @@
   const SLOW_MO_FACTOR = 0.3;
   const ADAPT_WINDOW = { JUMP: 0.5, GRAVITY: 1.2, DASH: 1.0, BOUNCE: 0.8 };
 
+  const LEVEL_BANNER_DURATION = 2.0;
+  const LEVEL_FLASH_DURATION = 0.7;
+
   // Difficulty: smooth asymptote. 0 at t=0, ~0.63 at 45s, ~0.86 at 90s.
   function difficulty() { return 1 - Math.exp(-state.time / 45); }
   function ruleInterval() {
@@ -48,13 +51,6 @@
   const STAR_SPEEDS = [70, 28, 8];
 
   const COLORS = {
-    bg: '#01020a',
-    rail: '#1a2448',
-    railGlow: '#3ec3ff',
-    star: '#eef0ff',
-    planet: '#2a1754',
-    planetRing: '#6a3ab8',
-    planetShadow: '#090418',
     player: '#eef0ff',
     laser: '#ff2d5c',
     JUMP: '#3ec3ff',
@@ -62,6 +58,57 @@
     DASH: '#ff8a3d',
     BOUNCE: '#3ff2a0',
   };
+
+  // ——— Level themes ———
+  // Each level defines a visual palette. Collision + rule logic do NOT change
+  // per level — only art. Obstacle spawn variety scales via laserP.
+  const LEVELS = [
+    {
+      id: 1, name: 'Hyperspace', at: 0,
+      bg: '#01020a',
+      starColor: '#eef0ff', starCountBonus: 0,
+      planetColor: '#2a1754', planetRing: '#6a3ab8',
+      rail: '#1a2448', railGlow: '#3ec3ff',
+      obstacleTint: null,
+      laserP: 0.05,
+    },
+    {
+      id: 2, name: 'Debris Field', at: 25,
+      bg: '#0a0502',
+      starColor: '#ffd6a3', starCountBonus: 20,
+      planetColor: '#5a2a10', planetRing: '#ff8a3d',
+      rail: '#3a2010', railGlow: '#ff8a3d',
+      obstacleTint: '#ff6a3d',
+      laserP: 0.22,
+    },
+    {
+      id: 3, name: 'Nebula Core', at: 60,
+      bg: '#0b0218',
+      starColor: '#ffb3d9', starCountBonus: 30,
+      planetColor: '#4a1a6a', planetRing: '#ff50c0',
+      rail: '#2a1048', railGlow: '#b26bff',
+      obstacleTint: '#ff50c0',
+      laserP: 0.32,
+    },
+    {
+      id: 4, name: 'The Reactor', at: 110,
+      bg: '#18040a',
+      starColor: '#ffaaaa', starCountBonus: 10,
+      planetColor: '#7a1010', planetRing: '#ff3030',
+      rail: '#4a1420', railGlow: '#ff2d5c',
+      obstacleTint: '#ff2d5c',
+      laserP: 0.42,
+    },
+  ];
+
+  function levelForTime(t) {
+    let idx = 0;
+    for (let i = LEVELS.length - 1; i >= 0; i--) {
+      if (t >= LEVELS[i].at) { idx = i; break; }
+    }
+    return idx;
+  }
+  function currentTheme() { return LEVELS[state.level || 0]; }
 
   // ——— Deterministic PRNG (mulberry32) ———
   // Gameplay-affecting randomness routes through rng() so we can seed runs.
@@ -108,6 +155,8 @@
   const btnDaily = document.getElementById('btn-daily');
   const dailyBadge = document.getElementById('daily-badge');
   const dailyMeta = document.getElementById('daily-meta');
+  const levelNumEl = document.getElementById('level-num');
+  const levelBannerEl = document.getElementById('level-banner');
 
   let reduceMotion = localStorage.getItem('brainlag_reduce_motion') === '1';
 
@@ -360,6 +409,10 @@
     state.deathFlash = 0;
     state.lastRuleChangeAt = 0;
     state.paused = false;
+    state.level = 0;
+    state.maxLevel = 0;
+    state.levelBannerTimer = 0;
+    state.levelFlashTimer = 0;
     pauseOverlay.classList.remove('visible');
     updateRuleUI();
     comboLabel.textContent = 'x0';
@@ -383,6 +436,30 @@
   function pickNextRule() {
     const others = RULE_POOL.filter(r => r !== state.currentRule);
     return others[Math.floor(rng() * others.length)];
+  }
+
+  function triggerLevelUp() {
+    const theme = currentTheme();
+    state.levelBannerTimer = LEVEL_BANNER_DURATION;
+    state.levelFlashTimer = LEVEL_FLASH_DURATION;
+    addShake(10);
+    // Update HUD indicator
+    if (levelNumEl) levelNumEl.textContent = String(theme.id);
+    // Banner UI
+    if (levelBannerEl) {
+      const nameEl = levelBannerEl.querySelector('.level-banner-name');
+      const numEl = levelBannerEl.querySelector('.level-banner-num');
+      if (numEl) numEl.textContent = 'LEVEL ' + theme.id;
+      if (nameEl) nameEl.textContent = theme.name;
+      levelBannerEl.style.setProperty('--level-accent', theme.railGlow);
+      levelBannerEl.classList.remove('visible');
+      // force reflow so animation restarts
+      void levelBannerEl.offsetWidth;
+      levelBannerEl.classList.add('visible');
+    }
+    // Radial burst in the new accent color
+    spawnParticles(W * 0.82, H * 0.48, 40, theme.railGlow, 360, 1.1, 0);
+    if (window.BrainLagAudio) BrainLagAudio.levelUp();
   }
 
   function triggerRuleChange() {
@@ -521,8 +598,10 @@
       return;
     }
 
-    // Moving laser — thin beam patrolling a vertical lane
-    if (roll < 0.18 && rule !== 'DASH' && rule !== 'BOUNCE') {
+    // Moving laser — thin beam patrolling a vertical lane.
+    // Spawn rate scales with level (L1: 5%, L4: 42%) so new variants feel earned.
+    const laserP = LEVELS[state.level || 0].laserP;
+    if (roll < laserP && rule !== 'DASH' && rule !== 'BOUNCE') {
       const h = 10;
       const w = 12 + rng() * 6;
       state.obstacles.push({
@@ -748,6 +827,16 @@
     if (state.signalTimer > 0) state.signalTimer = Math.max(0, state.signalTimer - dt);
     if (state.flashTimer > 0) state.flashTimer = Math.max(0, state.flashTimer - dt);
     if (state.adaptTimer > 0) state.adaptTimer = Math.max(0, state.adaptTimer - edt);
+    if (state.levelBannerTimer > 0) state.levelBannerTimer = Math.max(0, state.levelBannerTimer - dt);
+    if (state.levelFlashTimer > 0) state.levelFlashTimer = Math.max(0, state.levelFlashTimer - dt);
+
+    // Level progression — purely cosmetic, does not interfere with rule cycle.
+    const nextLvl = levelForTime(state.time);
+    if (nextLvl > state.level) {
+      state.level = nextLvl;
+      if (nextLvl > state.maxLevel) state.maxLevel = nextLvl;
+      triggerLevelUp();
+    }
 
     if (state.time >= state.nextRuleAt && state.signalTimer === 0) {
       triggerRuleChange();
@@ -862,18 +951,19 @@
   }
 
   function renderStarfield() {
+    const theme = currentTheme();
+    ctx.fillStyle = theme.starColor;
     for (const s of state.stars) {
       const base = 1 - s.depth * 0.3;
       const tw = 0.6 + Math.sin(s.twinkle) * 0.4;
-      const alpha = base * tw;
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = COLORS.star;
+      ctx.globalAlpha = base * tw;
       ctx.fillRect(s.x | 0, s.y | 0, s.size, s.size);
     }
     ctx.globalAlpha = 1;
   }
 
   function renderPlanet() {
+    const theme = currentTheme();
     const cx = W * 0.82;
     const cy = H * 0.48;
     const r = 110;
@@ -881,15 +971,15 @@
     ctx.save();
     ctx.globalAlpha = 0.45;
     const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.2, cx, cy, r);
-    grad.addColorStop(0, COLORS.planetRing);
-    grad.addColorStop(0.6, COLORS.planet);
-    grad.addColorStop(1, COLORS.planetShadow);
+    grad.addColorStop(0, theme.planetRing);
+    grad.addColorStop(0.6, theme.planetColor);
+    grad.addColorStop(1, '#050208');
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = COLORS.planetRing;
+    ctx.strokeStyle = theme.planetRing;
     ctx.lineWidth = 1;
     ctx.globalAlpha = 0.25;
     ctx.beginPath();
@@ -899,11 +989,12 @@
   }
 
   function renderRails() {
+    const theme = currentTheme();
     const pulse = 0.6 + Math.sin(state.globalT * 2) * 0.15;
     ctx.save();
-    ctx.shadowColor = COLORS.railGlow;
+    ctx.shadowColor = theme.railGlow;
     ctx.shadowBlur = 10 * pulse;
-    ctx.strokeStyle = COLORS.rail;
+    ctx.strokeStyle = theme.rail;
     ctx.lineWidth = 2;
     ctx.globalAlpha = 0.9;
     ctx.beginPath();
@@ -914,7 +1005,7 @@
     ctx.stroke();
 
     ctx.globalAlpha = 0.25;
-    ctx.fillStyle = COLORS.railGlow;
+    ctx.fillStyle = theme.railGlow;
     for (let x = (state.globalT * 40) % 40; x < W; x += 40) {
       ctx.fillRect(x, FLOOR_Y + 2, 20, 1);
       ctx.fillRect(x, CEILING_Y - 3, 20, 1);
@@ -923,13 +1014,15 @@
   }
 
   function renderLaserGates() {
+    const theme = currentTheme();
+    const glowTint = theme.obstacleTint || COLORS.laser;
     for (const o of state.obstacles) {
       const pulse = 0.55 + Math.sin(state.globalT * 9 + o.x * 0.02) * 0.25;
       ctx.save();
 
       if (o.kind === 'WIDE_WALL') {
         // solid imperial-style wall
-        ctx.shadowColor = COLORS.laser;
+        ctx.shadowColor = glowTint;
         ctx.shadowBlur = 26;
         ctx.fillStyle = `rgba(255, 45, 92, ${0.55 + pulse * 0.2})`;
         ctx.fillRect(o.x, o.y, o.w, o.h);
@@ -944,7 +1037,7 @@
         }
       } else if (o.kind === 'MOVING_LASER') {
         // thin tracing beam
-        ctx.shadowColor = COLORS.laser;
+        ctx.shadowColor = glowTint;
         ctx.shadowBlur = 30;
         const coreW = o.w;
         ctx.fillStyle = COLORS.laser;
@@ -959,7 +1052,7 @@
         ctx.globalAlpha = pulse;
         ctx.fillRect(o.x + 1, o.y + 1, coreW - 2, o.h - 2);
       } else {
-        ctx.shadowColor = COLORS.laser;
+        ctx.shadowColor = glowTint;
         ctx.shadowBlur = 22;
         ctx.fillStyle = `rgba(255, 45, 92, ${pulse * 0.35})`;
         ctx.fillRect(o.x, o.y, o.w, o.h);
@@ -1084,7 +1177,8 @@
   }
 
   function render() {
-    ctx.fillStyle = COLORS.bg;
+    const theme = currentTheme();
+    ctx.fillStyle = theme.bg;
     ctx.fillRect(0, 0, W, H);
 
     renderStarfield();
@@ -1103,6 +1197,15 @@
     ctx.restore();
 
     renderHyperspaceStreak();
+
+    if (state.levelFlashTimer > 0) {
+      const t = state.levelFlashTimer / LEVEL_FLASH_DURATION;
+      ctx.save();
+      ctx.globalAlpha = t * 0.35;
+      ctx.fillStyle = theme.railGlow;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
 
     if (state.deathFlash > 0) {
       ctx.save();
