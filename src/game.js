@@ -104,6 +104,9 @@
   const musicValLabel = document.getElementById('music-val');
   const sfxValLabel = document.getElementById('sfx-val');
   const statsLine = document.getElementById('stats-line');
+  const btnDaily = document.getElementById('btn-daily');
+  const dailyBadge = document.getElementById('daily-badge');
+  const dailyMeta = document.getElementById('daily-meta');
 
   let reduceMotion = localStorage.getItem('brainlag_reduce_motion') === '1';
 
@@ -139,6 +142,66 @@
   renderStatsLine();
   const firstHint = document.getElementById('first-hint');
   if (firstHint && stats.runs === 0) firstHint.classList.add('visible');
+
+  // ——— Daily challenge ———
+  function todaysKey() {
+    const d = new Date();
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+  function todaysSeed() {
+    const d = new Date();
+    return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+  }
+  const daily = { key: todaysKey(), bestTime: 0, bestCombo: 0, runs: 0 };
+  function loadDaily() {
+    try {
+      const raw = localStorage.getItem('brainlag_daily');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.key === daily.key) Object.assign(daily, parsed);
+      }
+    } catch (e) { /* ignore */ }
+  }
+  function saveDaily() {
+    try { localStorage.setItem('brainlag_daily', JSON.stringify(daily)); } catch (e) {}
+  }
+  function renderDailyMeta() {
+    if (!dailyMeta) return;
+    const hasScore = daily.bestTime > 0;
+    dailyMeta.textContent = daily.key + ' \u00B7 ' +
+      (hasScore
+        ? 'today\u2019s best: ' + daily.bestTime.toFixed(1) + 's · x' + daily.bestCombo
+        : 'today\u2019s best: —');
+  }
+  loadDaily();
+  renderDailyMeta();
+
+  function startNewRun() {
+    if (state.isDaily) setSeed(todaysSeed());
+    else clearSeed();
+    resetRun();
+  }
+  function startFree() {
+    state.isDaily = false;
+    dailyBadge.classList.remove('visible');
+    startNewRun();
+  }
+  function startDaily() {
+    state.isDaily = true;
+    dailyBadge.textContent = 'DAILY \u00B7 ' + daily.key;
+    dailyBadge.classList.add('visible');
+    startNewRun();
+  }
+
+  btnDaily.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (window.BrainLagAudio) BrainLagAudio.start();
+    startDaily();
+  });
 
   const state = {
     phase: 'start',
@@ -330,13 +393,17 @@
 
   function onInput() {
     if (window.BrainLagAudio) BrainLagAudio.start();
-    if (state.phase === 'start' || state.phase === 'dead') {
-      resetRun();
+    if (state.phase === 'start') {
+      if (typeof startFree === 'function') startFree(); else resetRun();
+      return;
+    }
+    if (state.phase === 'dead') {
+      if (typeof startNewRun === 'function') startNewRun(); else resetRun();
       return;
     }
     // Allow skipping the death cinematic — but not the 120ms freeze-frame.
     if (state.phase === 'dying' && state.deathFreezeTimer <= 0) {
-      resetRun();
+      if (typeof startNewRun === 'function') startNewRun(); else resetRun();
       return;
     }
     if (state.phase === 'dying') return;
@@ -511,6 +578,14 @@
     if (state.bestCombo > stats.bestCombo) stats.bestCombo = state.bestCombo;
     stats.fails[failure.title] = (stats.fails[failure.title] || 0) + 1;
     saveStats();
+
+    if (state.isDaily && typeof daily !== 'undefined') {
+      daily.runs += 1;
+      if (state.time > daily.bestTime) daily.bestTime = state.time;
+      if (state.bestCombo > daily.bestCombo) daily.bestCombo = state.bestCombo;
+      saveDaily();
+      if (typeof renderDailyMeta === 'function') renderDailyMeta();
+    }
     deathScore.textContent = state.time.toFixed(1) + 's';
     deathCombo.textContent = 'Best combo · x' + state.bestCombo;
     deathBest.textContent = 'Best · ' + state.best.toFixed(1) + 's';
