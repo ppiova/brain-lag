@@ -41,6 +41,22 @@
     GRAVITY: '#b26bff',
   };
 
+  // ——— Deterministic PRNG (mulberry32) ———
+  // Gameplay-affecting randomness routes through rng() so we can seed runs.
+  function mulberry32(seed) {
+    let s = seed >>> 0;
+    return function() {
+      s = (s + 0x6D2B79F5) >>> 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  let rng = Math.random;
+  function setSeed(seed) { rng = mulberry32(seed); }
+  function clearSeed() { rng = Math.random; }
+
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
@@ -160,11 +176,11 @@
   function spawnObstacle() {
     const difficulty = Math.min(state.time / 60, 1);
     const gapBase = 1.4 - difficulty * 0.5;
-    state.spawnCooldown = gapBase + Math.random() * 0.4;
+    state.spawnCooldown = gapBase + rng() * 0.4;
 
     const rule = state.currentRule;
-    const height = 36 + Math.random() * 18;
-    const width = 24 + Math.random() * 14;
+    const height = 36 + rng() * 18;
+    const width = 24 + rng() * 14;
 
     if (rule === 'JUMP') {
       state.obstacles.push({
@@ -175,7 +191,7 @@
         onCeiling: false,
       });
     } else {
-      const onCeiling = Math.random() < 0.5;
+      const onCeiling = rng() < 0.5;
       state.obstacles.push({
         x: W + width,
         y: onCeiling ? CEILING_Y : FLOOR_Y - height,
