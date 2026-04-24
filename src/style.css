@@ -92,6 +92,35 @@ html, body {
   font-weight: 700;
 }
 
+#combo {
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  transition: transform 0.15s ease-out, text-shadow 0.2s ease;
+  text-shadow: 0 0 8px rgba(255, 209, 102, 0.4);
+}
+
+#combo.bump {
+  transform: scale(1.35);
+  text-shadow: 0 0 16px rgba(255, 209, 102, 0.9);
+}
+
+#combo.fire {
+  color: var(--laser);
+  text-shadow: 0 0 18px rgba(255, 45, 92, 0.8);
+}
+
+.death-combo {
+  color: var(--gold);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  font-size: clamp(12px, 1.6vw, 16px);
+  font-weight: 700;
+  filter: drop-shadow(0 0 10px rgba(255, 209, 102, 0.5));
+  margin-top: -0.6rem;
+}
+
 .overlay {
   position: absolute;
   inset: 0;

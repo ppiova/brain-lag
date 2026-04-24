@@ -75,10 +75,12 @@
 
   const ruleLabel = document.getElementById('rule-label');
   const timeLabel = document.getElementById('time');
+  const comboLabel = document.getElementById('combo');
   const startOverlay = document.getElementById('overlay');
   const deathOverlay = document.getElementById('death');
   const deathScore = document.getElementById('death-score');
   const deathBest = document.getElementById('death-best');
+  const deathCombo = document.getElementById('death-combo');
   const deathTitle = document.getElementById('death-title');
 
   const state = {
@@ -98,6 +100,7 @@
     stars: [],
     globalT: 0,
     particles: [],
+    floatTexts: [],
     shake: 0,
   };
 
@@ -123,6 +126,14 @@
 
   function addShake(amount) {
     state.shake = Math.max(state.shake, amount);
+  }
+
+  function spawnFloatText(x, y, text, color) {
+    state.floatTexts.push({
+      x, y, text, color,
+      life: 0.9, maxLife: 0.9,
+      vy: -55,
+    });
   }
 
   function initStars() {
@@ -167,7 +178,11 @@
     state.combo = 0;
     state.bestCombo = 0;
     state.lastNearMissAt = -99;
+    state.particles = [];
+    state.floatTexts = [];
     updateRuleUI();
+    comboLabel.textContent = 'x0';
+    comboLabel.classList.remove('fire', 'bump');
     startOverlay.classList.remove('visible');
     deathOverlay.classList.remove('visible');
   }
@@ -190,6 +205,9 @@
     state.adaptTimer = ADAPT_WINDOW[next] || 1;
     state.nextRuleAt = state.time + RULE_CHANGE_EVERY;
     updateRuleUI();
+    state.combo = 0;
+    comboLabel.textContent = 'x0';
+    comboLabel.classList.remove('fire', 'bump');
     addShake(7);
     spawnParticles(W / 2, H / 2, 32, COLORS[next], 320, 0.65, 0);
     if (window.BrainLagAudio) BrainLagAudio.ruleChange();
@@ -294,8 +312,15 @@
     state.lastNearMissAt = state.time;
     const px = o.x;
     const py = o.y + o.h / 2;
-    spawnParticles(px, py, 10, '#ffffff', 120, 0.35, 0);
+    const comboColor = state.combo >= 10 ? COLORS.laser :
+                       state.combo >= 5  ? COLORS.DASH  : '#ffffff';
+    spawnParticles(px, py, 10, comboColor, 120, 0.35, 0);
+    spawnFloatText(p.x + PLAYER_SIZE / 2, p.y - 8, '+' + state.combo, comboColor);
     addShake(2);
+    comboLabel.textContent = 'x' + state.combo;
+    comboLabel.classList.toggle('fire', state.combo >= 10);
+    comboLabel.classList.add('bump');
+    setTimeout(() => comboLabel.classList.remove('bump'), 160);
     if (window.BrainLagAudio) BrainLagAudio.nearMiss();
   }
 
@@ -316,6 +341,7 @@
       COLORS.laser, 260, 0.75, 420);
     addShake(20);
     deathScore.textContent = state.time.toFixed(1) + 's';
+    deathCombo.textContent = 'Best combo · x' + state.bestCombo;
     deathBest.textContent = 'Best · ' + state.best.toFixed(1) + 's';
     deathTitle.textContent = state.signalTimer > 0 ? 'Brain Lagged.' : 'Ship Lost.';
     deathOverlay.classList.add('visible');
@@ -345,6 +371,14 @@
     } else if (state.particles.length > 400) {
       state.particles = state.particles.filter(p => p.life > 0);
     }
+
+    for (const ft of state.floatTexts) {
+      ft.y += ft.vy * dt;
+      ft.vy += 40 * dt;
+      ft.life -= dt;
+    }
+    state.floatTexts = state.floatTexts.filter(ft => ft.life > 0);
+
     if (state.shake > 0.01) {
       state.shake *= Math.pow(0.004, dt);
     } else {
@@ -636,6 +670,22 @@
     ctx.restore();
   }
 
+  function renderFloatTexts() {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 18px Orbitron, ui-monospace, monospace';
+    for (const ft of state.floatTexts) {
+      const alpha = Math.min(1, ft.life / ft.maxLife * 1.2);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = ft.color;
+      ctx.shadowColor = ft.color;
+      ctx.shadowBlur = 10;
+      ctx.fillText(ft.text, ft.x, ft.y);
+    }
+    ctx.restore();
+  }
+
   function render() {
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, W, H);
@@ -652,6 +702,7 @@
     renderLaserGates();
     renderPlayer();
     renderParticles();
+    renderFloatTexts();
     ctx.restore();
 
     renderHyperspaceStreak();
