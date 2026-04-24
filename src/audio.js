@@ -336,6 +336,34 @@
     bell.start(t + 0.45); bell.stop(t + 1.05);
   }
 
+  function sfxNewRecord() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    // C-major arpeggio: C5, E5, G5, C6
+    const notes = [523.25, 659.25, 783.99, 1046.50];
+    notes.forEach((freq, i) => {
+      const st = t + 0.35 + i * 0.09;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.22, st);
+      g.gain.exponentialRampToValueAtTime(0.001, st + 0.35);
+      osc.connect(g); g.connect(sfxBus);
+      osc.start(st); osc.stop(st + 0.4);
+
+      // octave above, quieter — gives it bells vibe
+      const harm = ctx.createOscillator();
+      const hg = ctx.createGain();
+      harm.type = 'sine';
+      harm.frequency.value = freq * 2;
+      hg.gain.setValueAtTime(0.1, st);
+      hg.gain.exponentialRampToValueAtTime(0.001, st + 0.3);
+      harm.connect(hg); hg.connect(sfxBus);
+      harm.start(st); harm.stop(st + 0.35);
+    });
+  }
+
   function sfxDeath() {
     if (!ctx) return;
     const t = ctx.currentTime;
@@ -367,5 +395,6 @@
     start, setMuted, isMuted,
     jump: sfxJump, gravityFlip: sfxGravity, dash: sfxDash,
     nearMiss: sfxNearMiss, ruleChange: sfxRuleChange, death: sfxDeath,
+    newRecord: sfxNewRecord,
   };
 })();

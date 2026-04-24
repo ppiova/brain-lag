@@ -111,6 +111,36 @@ html, body {
   text-shadow: 0 0 18px rgba(255, 45, 92, 0.8);
 }
 
+.new-record {
+  display: none;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: clamp(18px, 3vw, 28px);
+  letter-spacing: 0.4em;
+  padding: 0.4em 1em 0.4em 1.4em;
+  border: 2px solid var(--gold);
+  background: rgba(255, 209, 102, 0.08);
+  color: var(--gold);
+  text-shadow: 0 0 18px rgba(255, 209, 102, 0.9);
+  box-shadow: 0 0 32px rgba(255, 209, 102, 0.5), inset 0 0 20px rgba(255, 209, 102, 0.15);
+  border-radius: 4px;
+  animation: new-record-pulse 1.4s ease-in-out infinite;
+  margin-bottom: 1rem;
+}
+
+.new-record.visible { display: inline-block; }
+
+@keyframes new-record-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 32px rgba(255, 209, 102, 0.5), inset 0 0 20px rgba(255, 209, 102, 0.15);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 48px rgba(255, 209, 102, 0.8), inset 0 0 28px rgba(255, 209, 102, 0.25);
+  }
+}
+
 .death-combo {
   color: var(--gold);
   letter-spacing: 0.3em;

@@ -89,6 +89,7 @@
   const deathCombo = document.getElementById('death-combo');
   const deathTitle = document.getElementById('death-title');
   const deathCaption = document.getElementById('death-caption');
+  const newRecordBadge = document.getElementById('new-record');
 
   const state = {
     phase: 'start',
@@ -401,6 +402,8 @@
     state.deathFreezeTimer = 0.12;
     state.deathSequenceTimer = 0.9;
     state.deathFlash = 1;
+    const oldBest = state.best;
+    const isNewRecord = state.time > oldBest && state.time >= 5;
     if (state.time > state.best) {
       state.best = state.time;
       localStorage.setItem('brainlag_best', String(state.best));
@@ -420,6 +423,18 @@
     deathBest.textContent = 'Best · ' + state.best.toFixed(1) + 's';
     deathTitle.textContent = failure.title;
     deathCaption.textContent = failure.caption;
+
+    if (isNewRecord) {
+      newRecordBadge.classList.add('visible');
+      // Gold confetti pouring upward
+      spawnParticles(W / 2, H * 0.6, 40, '#ffd166', 450, 1.4, 180);
+      spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 24,
+        '#ffd166', 300, 1.0, 140);
+      if (window.BrainLagAudio) BrainLagAudio.newRecord();
+    } else {
+      newRecordBadge.classList.remove('visible');
+    }
+
     // overlay shows AFTER the cinematic
     if (window.BrainLagAudio) BrainLagAudio.death();
   }
