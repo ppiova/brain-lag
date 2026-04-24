@@ -274,17 +274,44 @@
     state.spawnCooldown = gapBase + rng() * 0.4;
 
     const rule = state.currentRule;
+    const base = { minDist: Infinity, scored: false, kind: 'PILLAR' };
+    const roll = rng();
+
+    // DASH rule: wide walls that *require* dashing (too tall to jump)
+    if (rule === 'DASH' && roll < 0.55) {
+      const h = 150 + rng() * 30;
+      state.obstacles.push({
+        ...base, kind: 'WIDE_WALL',
+        x: W + 60, y: FLOOR_Y - h,
+        w: 54 + rng() * 14, h, onCeiling: false,
+      });
+      return;
+    }
+
+    // Moving laser — thin beam patrolling a vertical lane
+    if (roll < 0.18 && rule !== 'DASH') {
+      const h = 10;
+      const w = 12 + rng() * 6;
+      state.obstacles.push({
+        ...base, kind: 'MOVING_LASER',
+        x: W + w, y: CEILING_Y + 40 + rng() * 80,
+        w, h, onCeiling: false,
+        moveVy: (rng() < 0.5 ? -1 : 1) * (70 + rng() * 50),
+        laneMin: CEILING_Y + 20,
+        laneMax: FLOOR_Y - 40,
+      });
+      return;
+    }
+
     const height = 36 + rng() * 18;
     const width = 24 + rng() * 14;
 
-    const base = { minDist: Infinity, scored: false };
     if (rule === 'JUMP' || rule === 'DASH') {
       state.obstacles.push({
         ...base,
         x: W + width,
         y: FLOOR_Y - height,
-        w: width,
-        h: height,
+        w: width, h: height,
         onCeiling: false,
       });
     } else {
@@ -293,8 +320,7 @@
         ...base,
         x: W + width,
         y: onCeiling ? CEILING_Y : FLOOR_Y - height,
-        w: width,
-        h: height,
+        w: width, h: height,
         onCeiling,
       });
     }
@@ -468,7 +494,14 @@
     }
 
     const speed = state.speed + Math.min(state.time * 4, 120);
-    for (const o of state.obstacles) o.x -= speed * edt;
+    for (const o of state.obstacles) {
+      o.x -= speed * edt;
+      if (o.kind === 'MOVING_LASER') {
+        o.y += o.moveVy * edt;
+        if (o.y < o.laneMin) { o.y = o.laneMin; o.moveVy *= -1; }
+        else if (o.y + o.h > o.laneMax) { o.y = o.laneMax - o.h; o.moveVy *= -1; }
+      }
+    }
     state.obstacles = state.obstacles.filter(o => o.x + o.w > -20);
 
     // near-miss tracking: minimum vertical gap while horizontally overlapping
@@ -560,20 +593,50 @@
     for (const o of state.obstacles) {
       const pulse = 0.55 + Math.sin(state.globalT * 9 + o.x * 0.02) * 0.25;
       ctx.save();
-      ctx.shadowColor = COLORS.laser;
-      ctx.shadowBlur = 22;
-      ctx.fillStyle = `rgba(255, 45, 92, ${pulse * 0.35})`;
-      ctx.fillRect(o.x, o.y, o.w, o.h);
 
-      ctx.strokeStyle = COLORS.laser;
-      ctx.lineWidth = 2;
-      ctx.globalAlpha = pulse;
-      ctx.strokeRect(o.x + 0.5, o.y + 0.5, o.w - 1, o.h - 1);
-
-      ctx.fillStyle = '#ffd6dd';
-      ctx.globalAlpha = pulse;
-      const beamW = 2;
-      ctx.fillRect(o.x + o.w / 2 - beamW / 2, o.y + 2, beamW, o.h - 4);
+      if (o.kind === 'WIDE_WALL') {
+        // solid imperial-style wall
+        ctx.shadowColor = COLORS.laser;
+        ctx.shadowBlur = 26;
+        ctx.fillStyle = `rgba(255, 45, 92, ${0.55 + pulse * 0.2})`;
+        ctx.fillRect(o.x, o.y, o.w, o.h);
+        ctx.strokeStyle = '#ffd6dd';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.9;
+        ctx.strokeRect(o.x + 0.5, o.y + 0.5, o.w - 1, o.h - 1);
+        // warning stripes
+        ctx.fillStyle = 'rgba(255, 214, 221, 0.5)';
+        for (let yy = 8; yy < o.h - 8; yy += 16) {
+          ctx.fillRect(o.x + 4, o.y + yy, o.w - 8, 3);
+        }
+      } else if (o.kind === 'MOVING_LASER') {
+        // thin tracing beam
+        ctx.shadowColor = COLORS.laser;
+        ctx.shadowBlur = 30;
+        const coreW = o.w;
+        ctx.fillStyle = COLORS.laser;
+        ctx.globalAlpha = 0.9;
+        ctx.fillRect(o.x, o.y, coreW, o.h);
+        // long horizontal trail
+        ctx.fillStyle = `rgba(255, 45, 92, 0.35)`;
+        ctx.fillRect(o.x - 80, o.y + o.h / 2 - 1, 80, 2);
+        ctx.fillRect(o.x + coreW, o.y + o.h / 2 - 1, W - o.x - coreW, 1);
+        // bright core
+        ctx.fillStyle = '#fff0f3';
+        ctx.globalAlpha = pulse;
+        ctx.fillRect(o.x + 1, o.y + 1, coreW - 2, o.h - 2);
+      } else {
+        ctx.shadowColor = COLORS.laser;
+        ctx.shadowBlur = 22;
+        ctx.fillStyle = `rgba(255, 45, 92, ${pulse * 0.35})`;
+        ctx.fillRect(o.x, o.y, o.w, o.h);
+        ctx.strokeStyle = COLORS.laser;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = pulse;
+        ctx.strokeRect(o.x + 0.5, o.y + 0.5, o.w - 1, o.h - 1);
+        ctx.fillStyle = '#ffd6dd';
+        ctx.fillRect(o.x + o.w / 2 - 1, o.y + 2, 2, o.h - 4);
+      }
       ctx.restore();
     }
   }
