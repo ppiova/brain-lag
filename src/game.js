@@ -23,7 +23,7 @@
 
   const SIGNAL_DURATION = 0.6;
   const SLOW_MO_FACTOR = 0.3;
-  const ADAPT_WINDOW = { JUMP: 0.5, GRAVITY: 1.2, DASH: 1.0 };
+  const ADAPT_WINDOW = { JUMP: 0.5, GRAVITY: 1.2, DASH: 1.0, BOUNCE: 0.8 };
 
   // Difficulty: smooth asymptote. 0 at t=0, ~0.63 at 45s, ~0.86 at 90s.
   function difficulty() { return 1 - Math.exp(-state.time / 45); }
@@ -35,10 +35,13 @@
   const DASH_DURATION = 0.28;
   const DASH_COOLDOWN = 0.45;
 
+  const BOUNCE_VELOCITY_LOW = 460;
+  const BOUNCE_VELOCITY_HIGH = 640;
+
   const NEAR_MISS_THRESHOLD = 14;
 
-  const RULE_POOL = ['JUMP', 'GRAVITY', 'DASH'];
-  const RULE_ICONS = { JUMP: '\u25B2', GRAVITY: '\u21C5', DASH: '\u25B6' };
+  const RULE_POOL = ['JUMP', 'GRAVITY', 'DASH', 'BOUNCE'];
+  const RULE_ICONS = { JUMP: '\u25B2', GRAVITY: '\u21C5', DASH: '\u25B6', BOUNCE: '\u25CF' };
 
   const TRAIL_LENGTH = 10;
   const STAR_COUNT = 110;
@@ -57,6 +60,7 @@
     JUMP: '#3ec3ff',
     GRAVITY: '#b26bff',
     DASH: '#ff8a3d',
+    BOUNCE: '#3ff2a0',
   };
 
   // ——— Deterministic PRNG (mulberry32) ———
@@ -236,6 +240,10 @@
         state.player.vy = 0;
       }
     }
+    // BOUNCE rule kickstart: if player is resting on a surface, pop them up
+    if (next === 'BOUNCE' && state.player.onSurface) {
+      doBounce(state.player, BOUNCE_VELOCITY_LOW, COLORS.BOUNCE);
+    }
   }
 
   function doJump(p) {
@@ -256,6 +264,16 @@
       COLORS.DASH, 180, 0.45, 0);
     addShake(4);
     if (window.BrainLagAudio) BrainLagAudio.dash();
+  }
+
+  function doBounce(p, velocity, color) {
+    p.vy = -velocity * p.gravityDir;
+    p.onSurface = false;
+    p.squashY = 1.5;
+    spawnParticles(p.x + PLAYER_SIZE / 2,
+      p.gravityDir === 1 ? p.y + PLAYER_SIZE : p.y,
+      velocity > BOUNCE_VELOCITY_LOW + 50 ? 12 : 5,
+      color, 160, 0.35, 300 * p.gravityDir);
   }
 
   function onInput() {
@@ -287,6 +305,13 @@
       if (window.BrainLagAudio) BrainLagAudio.gravityFlip();
     } else if (state.currentRule === 'DASH') {
       doDash(p);
+    } else if (state.currentRule === 'BOUNCE') {
+      if (p.onSurface) {
+        doBounce(p, BOUNCE_VELOCITY_HIGH, COLORS.BOUNCE);
+        if (window.BrainLagAudio) BrainLagAudio.jump();
+      } else {
+        p.bufferedJump = JUMP_BUFFER_TIME;
+      }
     }
   }
 
@@ -311,8 +336,20 @@
       return;
     }
 
+    // BOUNCE rule: mix of short (auto-clear) and tall (require tap-boosted bounce)
+    if (rule === 'BOUNCE') {
+      const tall = rng() < 0.45;
+      const h = tall ? 70 + rng() * 25 : 22 + rng() * 18;
+      const w = 26 + rng() * 10;
+      state.obstacles.push({
+        ...base, kind: 'PILLAR',
+        x: W + w, y: FLOOR_Y - h, w, h, onCeiling: false,
+      });
+      return;
+    }
+
     // Moving laser — thin beam patrolling a vertical lane
-    if (roll < 0.18 && rule !== 'DASH') {
+    if (roll < 0.18 && rule !== 'DASH' && rule !== 'BOUNCE') {
       const h = 10;
       const w = 12 + rng() * 6;
       state.obstacles.push({
@@ -540,9 +577,20 @@
       const footY = p.gravityDir === 1 ? p.y + PLAYER_SIZE : p.y;
       spawnParticles(p.x + PLAYER_SIZE / 2, footY, 5,
         COLORS[state.currentRule], 120, 0.35, 400 * p.gravityDir);
+
+      // BOUNCE rule: auto-rebound on every landing (big if buffered, small otherwise)
+      if (state.currentRule === 'BOUNCE') {
+        if (p.bufferedJump > 0) {
+          doBounce(p, BOUNCE_VELOCITY_HIGH, COLORS.BOUNCE);
+          p.bufferedJump = 0;
+          if (window.BrainLagAudio) BrainLagAudio.jump();
+        } else {
+          doBounce(p, BOUNCE_VELOCITY_LOW, COLORS.BOUNCE);
+        }
+      }
     }
 
-    // jump buffering: if a buffered jump is queued and we just landed, fire it
+    // JUMP rule: buffered jump fires on landing
     if (p.onSurface && p.bufferedJump > 0 && state.currentRule === 'JUMP') {
       doJump(p);
     }

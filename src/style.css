@@ -5,6 +5,8 @@
   --muted: #5a6090;
   --jump: #3ec3ff;
   --gravity: #b26bff;
+  --dash: #ff8a3d;
+  --bounce: #3ff2a0;
   --laser: #ff2d5c;
   --gold: #ffd166;
 }
@@ -85,6 +87,7 @@ html, body {
 #rule-label.gravity { color: var(--gravity); }
 #rule-label.jump    { color: var(--jump); }
 #rule-label.dash    { color: var(--dash); }
+#rule-label.bounce  { color: var(--bounce); }
 
 #time {
   color: var(--fg);
