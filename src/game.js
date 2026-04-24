@@ -257,7 +257,7 @@
     player: null,
     obstacles: [],
     currentRule: 'JUMP',
-    nextRuleAt: RULE_CHANGE_EVERY,
+    nextRuleAt: 0,
     signalTimer: 0,
     flashTimer: 0,
     adaptTimer: 0,
