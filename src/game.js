@@ -94,6 +94,7 @@
   const deathTitle = document.getElementById('death-title');
   const deathCaption = document.getElementById('death-caption');
   const newRecordBadge = document.getElementById('new-record');
+  const pauseOverlay = document.getElementById('pause');
 
   const state = {
     phase: 'start',
@@ -117,6 +118,7 @@
     deathFreezeTimer: 0,
     deathSequenceTimer: 0,
     deathFlash: 0,
+    paused: false,
   };
 
   // ——— Particle system ———
@@ -199,6 +201,8 @@
     state.deathSequenceTimer = 0;
     state.deathFlash = 0;
     state.lastRuleChangeAt = 0;
+    state.paused = false;
+    pauseOverlay.classList.remove('visible');
     updateRuleUI();
     comboLabel.textContent = 'x0';
     comboLabel.classList.remove('fire', 'bump');
@@ -514,7 +518,21 @@
     }
   }
 
+  function setPaused(p) {
+    if (state.phase !== 'playing' && !state.paused) return;
+    if (state.paused === p) return;
+    state.paused = p;
+    pauseOverlay.classList.toggle('visible', p);
+    if (window.BrainLagAudio) {
+      if (p) BrainLagAudio.suspend();
+      else   BrainLagAudio.resume();
+    }
+  }
+  function togglePause() { setPaused(!state.paused); }
+
   function update(dt) {
+    if (state.paused) return;
+
     // Complete freeze-frame on impact — 120ms of absolute stillness.
     if (state.deathFreezeTimer > 0) {
       state.deathFreezeTimer = Math.max(0, state.deathFreezeTimer - dt);
@@ -924,6 +942,11 @@
   canvas.addEventListener('pointerdown', e => { e.preventDefault(); onInput(); });
   startOverlay.addEventListener('pointerdown', e => { e.preventDefault(); onInput(); });
   deathOverlay.addEventListener('pointerdown', e => { e.preventDefault(); onInput(); });
+  pauseOverlay.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    togglePause();
+  });
   window.addEventListener('keydown', e => {
     if (e.code === 'Space' || e.code === 'Enter') {
       e.preventDefault();
@@ -931,8 +954,17 @@
     } else if (e.code === 'KeyM') {
       e.preventDefault();
       toggleMute();
+    } else if (e.code === 'KeyP' || e.code === 'Escape') {
+      e.preventDefault();
+      togglePause();
     }
   });
+
+  // Auto-pause when the tab loses focus or visibility.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) setPaused(true);
+  });
+  window.addEventListener('blur', () => setPaused(true));
 
   const muteBtn = document.getElementById('mute');
   let isMuted = localStorage.getItem('brainlag_muted') === '1';

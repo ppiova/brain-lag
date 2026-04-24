@@ -391,8 +391,11 @@
     sub.start(t); sub.stop(t + 0.75);
   }
 
+  function suspend() { if (ctx && ctx.state === 'running') ctx.suspend(); }
+  function resumeCtx() { if (ctx && ctx.state === 'suspended') ctx.resume(); }
+
   window.BrainLagAudio = {
-    start, setMuted, isMuted,
+    start, setMuted, isMuted, suspend, resume: resumeCtx,
     jump: sfxJump, gravityFlip: sfxGravity, dash: sfxDash,
     nearMiss: sfxNearMiss, ruleChange: sfxRuleChange, death: sfxDeath,
     newRecord: sfxNewRecord,
