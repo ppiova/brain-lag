@@ -85,7 +85,33 @@
     lastT: 0,
     stars: [],
     globalT: 0,
+    particles: [],
+    shake: 0,
   };
+
+  // ——— Particle system ———
+  function spawnParticles(x, y, count, color, spread, life, gravity) {
+    spread = spread || 220;
+    life = life || 0.7;
+    gravity = gravity != null ? gravity : 280;
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = spread * (0.2 + Math.random() * 0.8);
+      state.particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life, maxLife: life,
+        size: 2 + Math.random() * 2.5,
+        color,
+        gravity,
+      });
+    }
+  }
+
+  function addShake(amount) {
+    state.shake = Math.max(state.shake, amount);
+  }
 
   function initStars() {
     state.stars = [];
@@ -141,6 +167,8 @@
     state.adaptTimer = ADAPT_WINDOW[next] || 1;
     state.nextRuleAt = state.time + RULE_CHANGE_EVERY;
     updateRuleUI();
+    addShake(7);
+    spawnParticles(W / 2, H / 2, 32, COLORS[next], 320, 0.65, 0);
     if (window.BrainLagAudio) BrainLagAudio.ruleChange();
     if (next === 'GRAVITY') {
       state.player.gravityDir = 1;
@@ -212,6 +240,12 @@
       state.best = state.time;
       localStorage.setItem('brainlag_best', String(state.best));
     }
+    const p = state.player;
+    spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 48,
+      COLORS[state.currentRule], 360, 0.9, 420);
+    spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 24,
+      COLORS.laser, 260, 0.75, 420);
+    addShake(20);
     deathScore.textContent = state.time.toFixed(1) + 's';
     deathBest.textContent = 'Best · ' + state.best.toFixed(1) + 's';
     deathTitle.textContent = state.signalTimer > 0 ? 'Brain Lagged.' : 'Ship Lost.';
@@ -230,9 +264,29 @@
     }
   }
 
+  function updateParticles(dt) {
+    for (const p of state.particles) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += p.gravity * dt;
+      p.life -= dt;
+    }
+    if (state.particles.length > 0 && state.particles[0].life <= 0) {
+      state.particles = state.particles.filter(p => p.life > 0);
+    } else if (state.particles.length > 400) {
+      state.particles = state.particles.filter(p => p.life > 0);
+    }
+    if (state.shake > 0.01) {
+      state.shake *= Math.pow(0.004, dt);
+    } else {
+      state.shake = 0;
+    }
+  }
+
   function update(dt) {
     state.globalT += dt;
     updateStars(dt);
+    updateParticles(dt);
 
     if (state.phase !== 'playing') return;
 
@@ -431,15 +485,37 @@
     ctx.restore();
   }
 
+  function renderParticles() {
+    ctx.save();
+    for (const p of state.particles) {
+      const alpha = Math.min(1, (p.life / p.maxLife) * 1.4);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 10;
+      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    }
+    ctx.restore();
+  }
+
   function render() {
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, W, H);
 
     renderStarfield();
     renderPlanet();
+
+    // Shake only the gameplay layer; keep stars/planet stable (feels more space-y).
+    const sx = state.shake > 0 ? (Math.random() - 0.5) * state.shake : 0;
+    const sy = state.shake > 0 ? (Math.random() - 0.5) * state.shake : 0;
+    ctx.save();
+    ctx.translate(sx, sy);
     renderRails();
     renderLaserGates();
     renderPlayer();
+    renderParticles();
+    ctx.restore();
+
     renderHyperspaceStreak();
 
     timeLabel.textContent = state.time.toFixed(1) + 's';
