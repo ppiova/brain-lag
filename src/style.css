@@ -191,9 +191,49 @@ html, body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter:
-    drop-shadow(0 0 18px rgba(62, 195, 255, 0.5))
-    drop-shadow(0 0 40px rgba(178, 107, 255, 0.3));
+  animation: title-breathe 3.6s ease-in-out infinite;
+}
+
+@keyframes title-breathe {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 18px rgba(62, 195, 255, 0.5))
+      drop-shadow(0 0 40px rgba(178, 107, 255, 0.3));
+    transform: scale(1);
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 28px rgba(62, 195, 255, 0.8))
+      drop-shadow(0 0 64px rgba(178, 107, 255, 0.55));
+    transform: scale(1.015);
+  }
+}
+
+.first-hint {
+  display: none;
+  margin-top: 0.4rem;
+  font-family: ui-monospace, monospace;
+  color: var(--gold);
+  font-size: clamp(12px, 1.55vw, 15px);
+  line-height: 1.6;
+  max-width: 44ch;
+  letter-spacing: 0.05em;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 10px rgba(255, 209, 102, 0.35));
+}
+.first-hint.visible { display: block; }
+
+.first-hint-badge {
+  display: inline-block;
+  color: var(--bg);
+  background: var(--gold);
+  padding: 0.1em 0.55em;
+  border-radius: 2px;
+  letter-spacing: 0.3em;
+  font-weight: 900;
+  font-size: 0.75em;
+  margin-right: 0.6em;
+  vertical-align: middle;
 }
 
 .overlay h2 {

@@ -137,6 +137,8 @@
   }
   loadStats();
   renderStatsLine();
+  const firstHint = document.getElementById('first-hint');
+  if (firstHint && stats.runs === 0) firstHint.classList.add('visible');
 
   const state = {
     phase: 'start',
