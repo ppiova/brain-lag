@@ -21,10 +21,16 @@
   const COYOTE_TIME = 0.08;
   const JUMP_BUFFER_TIME = 0.12;
 
-  const RULE_CHANGE_EVERY = 8;
   const SIGNAL_DURATION = 0.6;
   const SLOW_MO_FACTOR = 0.3;
   const ADAPT_WINDOW = { JUMP: 0.5, GRAVITY: 1.2, DASH: 1.0 };
+
+  // Difficulty: smooth asymptote. 0 at t=0, ~0.63 at 45s, ~0.86 at 90s.
+  function difficulty() { return 1 - Math.exp(-state.time / 45); }
+  function ruleInterval() {
+    if (state.time < 10) return 10;    // warmup — first rule lingers
+    return 9 - difficulty() * 4;        // 9s → 5s
+  }
 
   const DASH_DURATION = 0.28;
   const DASH_COOLDOWN = 0.45;
@@ -170,7 +176,7 @@
     };
     state.obstacles = [];
     state.currentRule = 'JUMP';
-    state.nextRuleAt = RULE_CHANGE_EVERY;
+    state.nextRuleAt = ruleInterval();
     state.signalTimer = 0;
     state.flashTimer = 0;
     state.adaptTimer = 0;
@@ -203,7 +209,7 @@
     state.signalTimer = SIGNAL_DURATION;
     state.flashTimer = SIGNAL_DURATION;
     state.adaptTimer = ADAPT_WINDOW[next] || 1;
-    state.nextRuleAt = state.time + RULE_CHANGE_EVERY;
+    state.nextRuleAt = state.time + ruleInterval();
     updateRuleUI();
     state.combo = 0;
     comboLabel.textContent = 'x0';
@@ -269,9 +275,10 @@
   }
 
   function spawnObstacle() {
-    const difficulty = Math.min(state.time / 60, 1);
-    const gapBase = 1.4 - difficulty * 0.5;
-    state.spawnCooldown = gapBase + rng() * 0.4;
+    const d = difficulty();
+    const gapBase = 1.3 - d * 0.6;       // 1.3s → 0.7s between spawns
+    const gapRand = 0.5 - d * 0.25;      // 0.5  → 0.25 jitter
+    state.spawnCooldown = gapBase + rng() * gapRand;
 
     const rule = state.currentRule;
     const base = { minDist: Infinity, scored: false, kind: 'PILLAR' };
@@ -493,7 +500,7 @@
       if (state.spawnCooldown <= 0) spawnObstacle();
     }
 
-    const speed = state.speed + Math.min(state.time * 4, 120);
+    const speed = state.speed + difficulty() * 200;     // 260 → 460 px/s
     for (const o of state.obstacles) {
       o.x -= speed * edt;
       if (o.kind === 'MOVING_LASER') {
