@@ -3,30 +3,41 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#0b0b12" />
-  <title>Brain Lag</title>
-  <meta name="description" content="A one-tap endless runner where the rule changes every few seconds." />
+  <meta name="theme-color" content="#01020a" />
+  <title>Brain Lag — Hyperdrive Protocol</title>
+  <meta name="description" content="A one-tap endless runner through a galactic reflex gauntlet. The rule changes every few seconds." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="src/style.css" />
 </head>
 <body>
   <main id="stage">
     <canvas id="game" width="800" height="450"></canvas>
     <div id="hud-top">
+      <span class="hud-label">PROTOCOL</span>
       <span id="rule-label">JUMP</span>
+      <span class="hud-sep">//</span>
+      <span class="hud-label">T+</span>
       <span id="time">0.0s</span>
     </div>
+    <button id="mute" class="mute-btn" aria-label="Toggle audio" title="Toggle audio"></button>
     <div id="overlay" class="overlay visible">
+      <p class="crawl">A long reaction time ago,<br/>in a tap far, far away...</p>
       <h1>Brain Lag</h1>
+      <p class="subtitle">— Hyperdrive Protocol —</p>
       <p class="tag">The button is always the same.<br/>The problem is it never does the same thing.</p>
-      <p class="hint">Tap, click, or press <kbd>Space</kbd> to start</p>
+      <p class="hint">Tap · Click · <kbd>Space</kbd> to engage</p>
     </div>
     <div id="death" class="overlay">
-      <h2 id="death-title">You lagged.</h2>
+      <h2 id="death-title">Ship Lost.</h2>
+      <p class="death-caption">YOUR REFLEXES FELL OUT OF HYPERSPACE</p>
       <p id="death-score">0.0s</p>
-      <p id="death-best">Best: 0.0s</p>
-      <p class="hint">Tap to retry</p>
+      <p id="death-best">BEST · 0.0s</p>
+      <p class="hint">Tap to re-engage</p>
     </div>
   </main>
+  <script src="src/audio.js"></script>
   <script src="src/game.js"></script>
 </body>
 </html>
