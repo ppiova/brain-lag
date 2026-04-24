@@ -142,6 +142,9 @@
       trail: [],
       coyoteTimer: 0,
       bufferedJump: 0,
+      squashY: 1,
+      visualRot: 0,
+      rotTarget: 0,
     };
     state.obstacles = [];
     state.currentRule = 'JUMP';
@@ -191,6 +194,7 @@
     p.onSurface = false;
     p.bufferedJump = 0;
     p.coyoteTimer = 0;
+    p.squashY = 1.4;
     if (window.BrainLagAudio) BrainLagAudio.jump();
   }
 
@@ -210,6 +214,10 @@
     } else if (state.currentRule === 'GRAVITY') {
       p.gravityDir *= -1;
       p.onSurface = false;
+      p.rotTarget += Math.PI;
+      p.squashY = 1.3;
+      spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 8,
+        COLORS.GRAVITY, 160, 0.35, 0);
       if (window.BrainLagAudio) BrainLagAudio.gravityFlip();
     }
   }
@@ -336,11 +344,30 @@
     if (wasOnSurface && !p.onSurface) p.coyoteTimer = COYOTE_TIME;
     if (!p.onSurface) p.coyoteTimer = Math.max(0, p.coyoteTimer - edt);
 
+    // landing impact: squash + puff
+    if (!wasOnSurface && p.onSurface) {
+      p.squashY = 0.65;
+      const footY = p.gravityDir === 1 ? p.y + PLAYER_SIZE : p.y;
+      spawnParticles(p.x + PLAYER_SIZE / 2, footY, 5,
+        COLORS[state.currentRule], 120, 0.35, 400 * p.gravityDir);
+    }
+
     // jump buffering: if a buffered jump is queued and we just landed, fire it
     if (p.onSurface && p.bufferedJump > 0 && state.currentRule === 'JUMP') {
       doJump(p);
     }
     p.bufferedJump = Math.max(0, p.bufferedJump - edt);
+
+    // squash/stretch — lerp back to 1 (auto-stretch while airborne too)
+    let targetSquash = 1;
+    if (!p.onSurface) {
+      const v = Math.abs(p.vy);
+      targetSquash = 1 + Math.min(0.25, v / 1600);
+    }
+    p.squashY += (targetSquash - p.squashY) * Math.min(1, 14 * dt);
+
+    // rotation lerp
+    p.visualRot += (p.rotTarget - p.visualRot) * Math.min(1, 16 * dt);
 
     p.trail.push({ x: p.x, y: p.y });
     if (p.trail.length > TRAIL_LENGTH) p.trail.shift();
@@ -460,13 +487,21 @@
     ctx.globalAlpha = 1;
 
     ctx.save();
+    const cx = p.x + PLAYER_SIZE / 2;
+    const cy = p.y + PLAYER_SIZE / 2;
+    ctx.translate(cx, cy);
+    ctx.rotate(p.visualRot);
+    const sy = p.squashY;
+    const sx = 1 / Math.sqrt(sy);
+    ctx.scale(sx, sy);
+
     ctx.shadowColor = ruleColor;
     ctx.shadowBlur = 24;
     ctx.fillStyle = ruleColor;
-    ctx.fillRect(p.x, p.y, PLAYER_SIZE, PLAYER_SIZE);
+    ctx.fillRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
     ctx.shadowBlur = 12;
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(p.x + 5, p.y + 5, PLAYER_SIZE - 10, PLAYER_SIZE - 10);
+    ctx.fillRect(-PLAYER_SIZE / 2 + 5, -PLAYER_SIZE / 2 + 5, PLAYER_SIZE - 10, PLAYER_SIZE - 10);
     ctx.restore();
   }
 
