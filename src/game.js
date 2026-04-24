@@ -17,6 +17,9 @@
   const BASE_SPEED = 260;
   const JUMP_VELOCITY = 520;
   const GRAVITY_ACC = 1600;
+  const TERMINAL_VELOCITY = 1100;
+  const COYOTE_TIME = 0.08;
+  const JUMP_BUFFER_TIME = 0.12;
 
   const RULE_CHANGE_EVERY = 8;
   const SIGNAL_DURATION = 0.6;
@@ -137,6 +140,8 @@
       onSurface: true,
       gravityDir: 1,
       trail: [],
+      coyoteTimer: 0,
+      bufferedJump: 0,
     };
     state.obstacles = [];
     state.currentRule = 'JUMP';
@@ -181,6 +186,14 @@
     }
   }
 
+  function doJump(p) {
+    p.vy = -JUMP_VELOCITY;
+    p.onSurface = false;
+    p.bufferedJump = 0;
+    p.coyoteTimer = 0;
+    if (window.BrainLagAudio) BrainLagAudio.jump();
+  }
+
   function onInput() {
     if (window.BrainLagAudio) BrainLagAudio.start();
     if (state.phase === 'start' || state.phase === 'dead') {
@@ -189,10 +202,10 @@
     }
     const p = state.player;
     if (state.currentRule === 'JUMP') {
-      if (p.onSurface) {
-        p.vy = -JUMP_VELOCITY;
-        p.onSurface = false;
-        if (window.BrainLagAudio) BrainLagAudio.jump();
+      if (p.onSurface || p.coyoteTimer > 0) {
+        doJump(p);
+      } else {
+        p.bufferedJump = JUMP_BUFFER_TIME;
       }
     } else if (state.currentRule === 'GRAVITY') {
       p.gravityDir *= -1;
@@ -303,7 +316,10 @@
     }
 
     const p = state.player;
+    const wasOnSurface = p.onSurface;
     p.vy += GRAVITY_ACC * p.gravityDir * edt;
+    if (p.vy > TERMINAL_VELOCITY) p.vy = TERMINAL_VELOCITY;
+    if (p.vy < -TERMINAL_VELOCITY) p.vy = -TERMINAL_VELOCITY;
     p.y += p.vy * edt;
 
     const floorTop = FLOOR_Y - PLAYER_SIZE;
@@ -312,7 +328,19 @@
       p.y = floorTop; p.vy = 0; p.onSurface = true;
     } else if (p.gravityDir === -1 && p.y <= ceilTop) {
       p.y = ceilTop; p.vy = 0; p.onSurface = true;
+    } else {
+      p.onSurface = false;
     }
+
+    // coyote time: if we just left the surface, keep a brief jump window
+    if (wasOnSurface && !p.onSurface) p.coyoteTimer = COYOTE_TIME;
+    if (!p.onSurface) p.coyoteTimer = Math.max(0, p.coyoteTimer - edt);
+
+    // jump buffering: if a buffered jump is queued and we just landed, fire it
+    if (p.onSurface && p.bufferedJump > 0 && state.currentRule === 'JUMP') {
+      doJump(p);
+    }
+    p.bufferedJump = Math.max(0, p.bufferedJump - edt);
 
     p.trail.push({ x: p.x, y: p.y });
     if (p.trail.length > TRAIL_LENGTH) p.trail.shift();
