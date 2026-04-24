@@ -1,0 +1,137 @@
+:root {
+  --bg: #0b0b12;
+  --fg: #e9e9f5;
+  --muted: #6b6b85;
+  --jump: #4da3ff;
+  --gravity: #a56eff;
+  --dash: #ff8a3d;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow: hidden;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at center, #13131f 0%, #0b0b12 70%);
+}
+
+#game {
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: auto;
+  max-height: 100vh;
+  aspect-ratio: 16 / 9;
+  display: block;
+  image-rendering: pixelated;
+  background: #0b0b12;
+  touch-action: manipulation;
+}
+
+#hud-top {
+  position: absolute;
+  top: 2vh;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2rem;
+  font-size: clamp(14px, 2vw, 22px);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
+  text-shadow: 0 0 12px rgba(0, 0, 0, 0.8);
+}
+
+#rule-label {
+  color: var(--jump);
+  transition: color 0.2s ease;
+  font-weight: 700;
+}
+
+#rule-label.gravity { color: var(--gravity); }
+#rule-label.jump    { color: var(--jump); }
+
+#time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+  padding: 2rem;
+  background: rgba(11, 11, 18, 0.85);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+}
+
+.overlay.visible { display: flex; }
+
+.overlay h1 {
+  font-size: clamp(40px, 8vw, 88px);
+  letter-spacing: 0.05em;
+  background: linear-gradient(135deg, var(--jump), var(--gravity));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 24px rgba(165, 110, 255, 0.3));
+}
+
+.overlay h2 {
+  font-size: clamp(28px, 5vw, 48px);
+  color: var(--fg);
+}
+
+.overlay .tag {
+  font-size: clamp(14px, 2vw, 20px);
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 32ch;
+}
+
+.overlay .hint {
+  margin-top: 1.5rem;
+  font-size: clamp(12px, 1.6vw, 16px);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+.overlay kbd {
+  background: #1a1a28;
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  border: 1px solid #2a2a3a;
+  font-family: inherit;
+  color: var(--fg);
+}
+
+#death-score {
+  font-size: clamp(36px, 7vw, 72px);
+  font-variant-numeric: tabular-nums;
+  color: var(--jump);
+  font-weight: 700;
+}
+
+#death-best {
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: clamp(12px, 1.6vw, 16px);
+}

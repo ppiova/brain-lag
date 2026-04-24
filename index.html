@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0b0b12" />
+  <title>Brain Lag</title>
+  <meta name="description" content="A one-tap endless runner where the rule changes every few seconds." />
+  <link rel="stylesheet" href="src/style.css" />
+</head>
+<body>
+  <main id="stage">
+    <canvas id="game" width="800" height="450"></canvas>
+    <div id="hud-top">
+      <span id="rule-label">JUMP</span>
+      <span id="time">0.0s</span>
+    </div>
+    <div id="overlay" class="overlay visible">
+      <h1>Brain Lag</h1>
+      <p class="tag">The button is always the same.<br/>The problem is it never does the same thing.</p>
+      <p class="hint">Tap, click, or press <kbd>Space</kbd> to start</p>
+    </div>
+    <div id="death" class="overlay">
+      <h2 id="death-title">You lagged.</h2>
+      <p id="death-score">0.0s</p>
+      <p id="death-best">Best: 0.0s</p>
+      <p class="hint">Tap to retry</p>
+    </div>
+  </main>
+  <script src="src/game.js"></script>
+</body>
+</html>
