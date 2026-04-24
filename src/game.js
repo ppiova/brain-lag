@@ -108,6 +108,9 @@
     particles: [],
     floatTexts: [],
     shake: 0,
+    deathFreezeTimer: 0,
+    deathSequenceTimer: 0,
+    deathFlash: 0,
   };
 
   // ——— Particle system ———
@@ -186,6 +189,9 @@
     state.lastNearMissAt = -99;
     state.particles = [];
     state.floatTexts = [];
+    state.deathFreezeTimer = 0;
+    state.deathSequenceTimer = 0;
+    state.deathFlash = 0;
     updateRuleUI();
     comboLabel.textContent = 'x0';
     comboLabel.classList.remove('fire', 'bump');
@@ -254,6 +260,12 @@
       resetRun();
       return;
     }
+    // Allow skipping the death cinematic — but not the 120ms freeze-frame.
+    if (state.phase === 'dying' && state.deathFreezeTimer <= 0) {
+      resetRun();
+      return;
+    }
+    if (state.phase === 'dying') return;
     const p = state.player;
     if (state.currentRule === 'JUMP') {
       if (p.onSurface || p.coyoteTimer > 0) {
@@ -362,22 +374,28 @@
   }
 
   function die() {
-    state.phase = 'dead';
+    state.phase = 'dying';
+    state.deathFreezeTimer = 0.12;
+    state.deathSequenceTimer = 0.9;
+    state.deathFlash = 1;
     if (state.time > state.best) {
       state.best = state.time;
       localStorage.setItem('brainlag_best', String(state.best));
     }
     const p = state.player;
-    spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 48,
-      COLORS[state.currentRule], 360, 0.9, 420);
-    spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 24,
-      COLORS.laser, 260, 0.75, 420);
-    addShake(20);
+    // bigger, longer-lived explosion
+    spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 64,
+      COLORS[state.currentRule], 420, 1.1, 380);
+    spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 36,
+      COLORS.laser, 300, 0.9, 380);
+    spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 18,
+      '#ffffff', 500, 0.6, 260);
+    addShake(28);
     deathScore.textContent = state.time.toFixed(1) + 's';
     deathCombo.textContent = 'Best combo · x' + state.bestCombo;
     deathBest.textContent = 'Best · ' + state.best.toFixed(1) + 's';
     deathTitle.textContent = state.signalTimer > 0 ? 'Brain Lagged.' : 'Ship Lost.';
-    deathOverlay.classList.add('visible');
+    // overlay shows AFTER the cinematic
     if (window.BrainLagAudio) BrainLagAudio.death();
   }
 
@@ -420,9 +438,26 @@
   }
 
   function update(dt) {
+    // Complete freeze-frame on impact — 120ms of absolute stillness.
+    if (state.deathFreezeTimer > 0) {
+      state.deathFreezeTimer = Math.max(0, state.deathFreezeTimer - dt);
+      return;
+    }
+
     state.globalT += dt;
     updateStars(dt);
     updateParticles(dt);
+
+    // Cinematic death sequence — explosion plays out, overlay waits.
+    if (state.phase === 'dying') {
+      state.deathSequenceTimer = Math.max(0, state.deathSequenceTimer - dt);
+      if (state.deathFlash > 0) state.deathFlash = Math.max(0, state.deathFlash - dt * 2);
+      if (state.deathSequenceTimer === 0) {
+        state.phase = 'dead';
+        deathOverlay.classList.add('visible');
+      }
+      return;
+    }
 
     if (state.phase !== 'playing') return;
 
@@ -650,6 +685,7 @@
 
   function renderPlayer() {
     if (!state.player) return;
+    if (state.phase === 'dying' || state.phase === 'dead') return;
     const p = state.player;
     const ruleColor = COLORS[state.currentRule] || COLORS.player;
 
@@ -776,6 +812,14 @@
     ctx.restore();
 
     renderHyperspaceStreak();
+
+    if (state.deathFlash > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, state.deathFlash);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
 
     timeLabel.textContent = state.time.toFixed(1) + 's';
   }
