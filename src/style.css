@@ -84,6 +84,7 @@ html, body {
 
 #rule-label.gravity { color: var(--gravity); }
 #rule-label.jump    { color: var(--jump); }
+#rule-label.dash    { color: var(--dash); }
 
 #time {
   color: var(--fg);

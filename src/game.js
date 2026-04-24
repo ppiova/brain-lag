@@ -24,7 +24,13 @@
   const RULE_CHANGE_EVERY = 8;
   const SIGNAL_DURATION = 0.6;
   const SLOW_MO_FACTOR = 0.3;
-  const ADAPT_WINDOW = { JUMP: 0.5, GRAVITY: 1.2 };
+  const ADAPT_WINDOW = { JUMP: 0.5, GRAVITY: 1.2, DASH: 1.0 };
+
+  const DASH_DURATION = 0.28;
+  const DASH_COOLDOWN = 0.45;
+
+  const RULE_POOL = ['JUMP', 'GRAVITY', 'DASH'];
+  const RULE_ICONS = { JUMP: '\u25B2', GRAVITY: '\u21C5', DASH: '\u25B6' };
 
   const TRAIL_LENGTH = 10;
   const STAR_COUNT = 110;
@@ -42,6 +48,7 @@
     laser: '#ff2d5c',
     JUMP: '#3ec3ff',
     GRAVITY: '#b26bff',
+    DASH: '#ff8a3d',
   };
 
   // ——— Deterministic PRNG (mulberry32) ———
@@ -145,6 +152,8 @@
       squashY: 1,
       visualRot: 0,
       rotTarget: 0,
+      dashTimer: 0,
+      dashCooldown: 0,
     };
     state.obstacles = [];
     state.currentRule = 'JUMP';
@@ -164,7 +173,8 @@
   }
 
   function pickNextRule() {
-    return state.currentRule === 'JUMP' ? 'GRAVITY' : 'JUMP';
+    const others = RULE_POOL.filter(r => r !== state.currentRule);
+    return others[Math.floor(rng() * others.length)];
   }
 
   function triggerRuleChange() {
@@ -198,6 +208,17 @@
     if (window.BrainLagAudio) BrainLagAudio.jump();
   }
 
+  function doDash(p) {
+    if (p.dashCooldown > 0) return;
+    p.dashTimer = DASH_DURATION;
+    p.dashCooldown = DASH_COOLDOWN;
+    p.squashY = 0.75;
+    spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 14,
+      COLORS.DASH, 180, 0.45, 0);
+    addShake(4);
+    if (window.BrainLagAudio) BrainLagAudio.dash();
+  }
+
   function onInput() {
     if (window.BrainLagAudio) BrainLagAudio.start();
     if (state.phase === 'start' || state.phase === 'dead') {
@@ -219,6 +240,8 @@
       spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 8,
         COLORS.GRAVITY, 160, 0.35, 0);
       if (window.BrainLagAudio) BrainLagAudio.gravityFlip();
+    } else if (state.currentRule === 'DASH') {
+      doDash(p);
     }
   }
 
@@ -369,6 +392,14 @@
     // rotation lerp
     p.visualRot += (p.rotTarget - p.visualRot) * Math.min(1, 16 * dt);
 
+    // dash timers + afterimage trail
+    p.dashTimer = Math.max(0, p.dashTimer - edt);
+    p.dashCooldown = Math.max(0, p.dashCooldown - edt);
+    if (p.dashTimer > 0 && Math.random() < 0.55) {
+      spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 1,
+        COLORS.DASH, 40, 0.3, 0);
+    }
+
     p.trail.push({ x: p.x, y: p.y });
     if (p.trail.length > TRAIL_LENGTH) p.trail.shift();
 
@@ -381,9 +412,11 @@
     for (const o of state.obstacles) o.x -= speed * edt;
     state.obstacles = state.obstacles.filter(o => o.x + o.w > -20);
 
-    const pBox = { x: p.x, y: p.y, w: PLAYER_SIZE, h: PLAYER_SIZE };
-    for (const o of state.obstacles) {
-      if (rectsOverlap(pBox, o)) { die(); return; }
+    if (p.dashTimer <= 0) {
+      const pBox = { x: p.x, y: p.y, w: PLAYER_SIZE, h: PLAYER_SIZE };
+      for (const o of state.obstacles) {
+        if (rectsOverlap(pBox, o)) { die(); return; }
+      }
     }
   }
 
@@ -495,11 +528,12 @@
     const sx = 1 / Math.sqrt(sy);
     ctx.scale(sx, sy);
 
+    const glow = p.dashTimer > 0 ? 40 : 24;
     ctx.shadowColor = ruleColor;
-    ctx.shadowBlur = 24;
+    ctx.shadowBlur = glow;
     ctx.fillStyle = ruleColor;
     ctx.fillRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = glow / 2;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(-PLAYER_SIZE / 2 + 5, -PLAYER_SIZE / 2 + 5, PLAYER_SIZE - 10, PLAYER_SIZE - 10);
     ctx.restore();
@@ -544,7 +578,7 @@
     ctx.font = '900 130px Orbitron, ui-monospace, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(state.currentRule === 'JUMP' ? '▲' : '⇅', 0, 0);
+    ctx.fillText(RULE_ICONS[state.currentRule] || '?', 0, 0);
     ctx.restore();
   }
 

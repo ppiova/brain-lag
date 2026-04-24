@@ -248,6 +248,35 @@
     osc.start(t); osc.stop(t + 0.22);
   }
 
+  function sfxDash() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(1200, t);
+    osc.frequency.exponentialRampToValueAtTime(260, t + 0.18);
+    filter.type = 'bandpass';
+    filter.frequency.value = 1600;
+    filter.Q.value = 5;
+    g.gain.setValueAtTime(0.28, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.connect(filter); filter.connect(g); g.connect(sfxBus);
+    osc.start(t); osc.stop(t + 0.22);
+
+    // sub-boom on dash start
+    const sub = ctx.createOscillator();
+    const sg = ctx.createGain();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(120, t);
+    sub.frequency.exponentialRampToValueAtTime(50, t + 0.2);
+    sg.gain.setValueAtTime(0.4, t);
+    sg.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    sub.connect(sg); sg.connect(sfxBus);
+    sub.start(t); sub.stop(t + 0.25);
+  }
+
   function sfxGravity() {
     if (!ctx) return;
     const t = ctx.currentTime;
@@ -322,6 +351,7 @@
 
   window.BrainLagAudio = {
     start, setMuted, isMuted,
-    jump: sfxJump, gravityFlip: sfxGravity, ruleChange: sfxRuleChange, death: sfxDeath,
+    jump: sfxJump, gravityFlip: sfxGravity, dash: sfxDash,
+    ruleChange: sfxRuleChange, death: sfxDeath,
   };
 })();
