@@ -88,6 +88,7 @@
   const deathBest = document.getElementById('death-best');
   const deathCombo = document.getElementById('death-combo');
   const deathTitle = document.getElementById('death-title');
+  const deathCaption = document.getElementById('death-caption');
 
   const state = {
     phase: 'start',
@@ -192,6 +193,7 @@
     state.deathFreezeTimer = 0;
     state.deathSequenceTimer = 0;
     state.deathFlash = 0;
+    state.lastRuleChangeAt = 0;
     updateRuleUI();
     comboLabel.textContent = 'x0';
     comboLabel.classList.remove('fire', 'bump');
@@ -216,6 +218,7 @@
     state.flashTimer = SIGNAL_DURATION;
     state.adaptTimer = ADAPT_WINDOW[next] || 1;
     state.nextRuleAt = state.time + ruleInterval();
+    state.lastRuleChangeAt = state.time;
     updateRuleUI();
     state.combo = 0;
     comboLabel.textContent = 'x0';
@@ -345,6 +348,26 @@
     }
   }
 
+  function pickFailureMode() {
+    // Ordered by specificity — first match wins.
+    if (state.time < 2) {
+      return { title: 'Tunnel Vision.', caption: "Your first two seconds? Gone." };
+    }
+    if (state.signalTimer > 0) {
+      return { title: 'Brain Lag.', caption: "Still running the old protocol." };
+    }
+    if (state.time - state.lastRuleChangeAt < 1.5) {
+      return { title: 'Muscle Memory.', caption: "Old reflex. New rule." };
+    }
+    if (state.combo >= 5) {
+      return { title: 'Greedy.', caption: 'Died chasing a x' + state.combo + ' combo.' };
+    }
+    if (state.player && state.player.dashCooldown > 0 && state.currentRule === 'DASH') {
+      return { title: 'Impatient.', caption: 'Dash wasn\u2019t ready.' };
+    }
+    return { title: 'Ship Lost.', caption: "Reflexes fell out of hyperspace." };
+  }
+
   function verticalGap(p, o) {
     if (p.y + PLAYER_SIZE < o.y) return o.y - (p.y + PLAYER_SIZE);
     if (p.y > o.y + o.h) return p.y - (o.y + o.h);
@@ -391,10 +414,12 @@
     spawnParticles(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2, 18,
       '#ffffff', 500, 0.6, 260);
     addShake(28);
+    const failure = pickFailureMode();
     deathScore.textContent = state.time.toFixed(1) + 's';
     deathCombo.textContent = 'Best combo · x' + state.bestCombo;
     deathBest.textContent = 'Best · ' + state.best.toFixed(1) + 's';
-    deathTitle.textContent = state.signalTimer > 0 ? 'Brain Lagged.' : 'Ship Lost.';
+    deathTitle.textContent = failure.title;
+    deathCaption.textContent = failure.caption;
     // overlay shows AFTER the cinematic
     if (window.BrainLagAudio) BrainLagAudio.death();
   }
