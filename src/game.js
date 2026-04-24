@@ -29,6 +29,8 @@
   const DASH_DURATION = 0.28;
   const DASH_COOLDOWN = 0.45;
 
+  const NEAR_MISS_THRESHOLD = 14;
+
   const RULE_POOL = ['JUMP', 'GRAVITY', 'DASH'];
   const RULE_ICONS = { JUMP: '\u25B2', GRAVITY: '\u21C5', DASH: '\u25B6' };
 
@@ -162,6 +164,9 @@
     state.flashTimer = 0;
     state.adaptTimer = 0;
     state.spawnCooldown = 1.2;
+    state.combo = 0;
+    state.bestCombo = 0;
+    state.lastNearMissAt = -99;
     updateRuleUI();
     startOverlay.classList.remove('visible');
     deathOverlay.classList.remove('visible');
@@ -254,8 +259,10 @@
     const height = 36 + rng() * 18;
     const width = 24 + rng() * 14;
 
-    if (rule === 'JUMP') {
+    const base = { minDist: Infinity, scored: false };
+    if (rule === 'JUMP' || rule === 'DASH') {
       state.obstacles.push({
+        ...base,
         x: W + width,
         y: FLOOR_Y - height,
         w: width,
@@ -265,6 +272,7 @@
     } else {
       const onCeiling = rng() < 0.5;
       state.obstacles.push({
+        ...base,
         x: W + width,
         y: onCeiling ? CEILING_Y : FLOOR_Y - height,
         w: width,
@@ -272,6 +280,23 @@
         onCeiling,
       });
     }
+  }
+
+  function verticalGap(p, o) {
+    if (p.y + PLAYER_SIZE < o.y) return o.y - (p.y + PLAYER_SIZE);
+    if (p.y > o.y + o.h) return p.y - (o.y + o.h);
+    return 0;
+  }
+
+  function triggerNearMiss(p, o) {
+    state.combo = (state.combo || 0) + 1;
+    state.bestCombo = Math.max(state.bestCombo || 0, state.combo);
+    state.lastNearMissAt = state.time;
+    const px = o.x;
+    const py = o.y + o.h / 2;
+    spawnParticles(px, py, 10, '#ffffff', 120, 0.35, 0);
+    addShake(2);
+    if (window.BrainLagAudio) BrainLagAudio.nearMiss();
   }
 
   function rectsOverlap(a, b) {
@@ -411,6 +436,22 @@
     const speed = state.speed + Math.min(state.time * 4, 120);
     for (const o of state.obstacles) o.x -= speed * edt;
     state.obstacles = state.obstacles.filter(o => o.x + o.w > -20);
+
+    // near-miss tracking: minimum vertical gap while horizontally overlapping
+    const pRight = p.x + PLAYER_SIZE;
+    for (const o of state.obstacles) {
+      if (o.scored) continue;
+      if (o.x <= pRight && o.x + o.w >= p.x) {
+        const dy = verticalGap(p, o);
+        if (dy < o.minDist) o.minDist = dy;
+      }
+      if (o.x + o.w < p.x) {
+        o.scored = true;
+        if (o.minDist > 0 && o.minDist < NEAR_MISS_THRESHOLD) {
+          triggerNearMiss(p, o);
+        }
+      }
+    }
 
     if (p.dashTimer <= 0) {
       const pBox = { x: p.x, y: p.y, w: PLAYER_SIZE, h: PLAYER_SIZE };

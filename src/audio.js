@@ -248,6 +248,20 @@
     osc.start(t); osc.stop(t + 0.22);
   }
 
+  function sfxNearMiss() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(2200, t);
+    osc.frequency.exponentialRampToValueAtTime(2800, t + 0.08);
+    g.gain.setValueAtTime(0.14, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+    osc.connect(g); g.connect(sfxBus);
+    osc.start(t); osc.stop(t + 0.16);
+  }
+
   function sfxDash() {
     if (!ctx) return;
     const t = ctx.currentTime;
@@ -352,6 +366,6 @@
   window.BrainLagAudio = {
     start, setMuted, isMuted,
     jump: sfxJump, gravityFlip: sfxGravity, dash: sfxDash,
-    ruleChange: sfxRuleChange, death: sfxDeath,
+    nearMiss: sfxNearMiss, ruleChange: sfxRuleChange, death: sfxDeath,
   };
 })();
